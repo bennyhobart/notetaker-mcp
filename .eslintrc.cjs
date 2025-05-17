@@ -1,0 +1,36 @@
+module.exports = {
+  root: true,
+  parser: "@typescript-eslint/parser",
+  plugins: ["@typescript-eslint"],
+  extends: [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "prettier",
+  ],
+  env: {
+    node: true,
+    es2021: true,
+  },
+  parserOptions: {
+    ecmaVersion: "latest",
+    sourceType: "module",
+    project: "tsconfig.json",
+  },
+  rules: {
+    "@typescript-eslint/explicit-function-return-type": [
+      "error",
+      {
+        allowExpressions: true,
+        allowTypedFunctionExpressions: true,
+      },
+    ],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+      },
+    ],
+    "no-console": ["warn", { allow: ["error", "warn"] }],
+  },
+};
