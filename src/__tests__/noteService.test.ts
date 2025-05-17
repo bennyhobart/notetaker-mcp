@@ -1,4 +1,11 @@
-import { ensureNotesDir, deleteNote, getAllNotes, getNote, saveNote, Note } from "../noteService";
+import {
+  ensureNotesDir,
+  deleteNote,
+  getAllNotes,
+  getNote,
+  saveNote,
+  Note,
+} from "../noteService.js";
 
 describe("Note Service", () => {
   const testNote: Note = {
