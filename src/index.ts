@@ -1,14 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import {
-  ensureNotesDir,
-  getAllNotes,
-  getNoteById,
-  saveNote,
-  deleteNoteById,
-  createNewNote,
-} from "./noteService.js";
+import { ensureNotesDir, getAllNotes, getNote, saveNote, deleteNote, Note } from "./noteService.js";
 
 // Create server instance
 const server = new McpServer({
@@ -34,14 +27,7 @@ server.tool("list-notes", "List all notes", {}, async () => {
     content: [
       {
         type: "text",
-        text: notes
-          .map(
-            (note) =>
-              `- ${note.id}: ${note.title} (Last updated: ${new Date(
-                note.updatedAt
-              ).toLocaleString()})`
-          )
-          .join("\n"),
+        text: notes.map((note) => `- ${note.title}`).join("\n"),
       },
     ],
   };
@@ -55,7 +41,7 @@ server.tool(
     noteId: z.string(),
   },
   async ({ noteId }) => {
-    const note = await getNoteById(noteId);
+    const note = await getNote(noteId);
 
     if (!note) {
       return {
@@ -67,9 +53,7 @@ server.tool(
       content: [
         {
           type: "text",
-          text: `# ${note.title}\n\n${note.content}\n\nCreated: ${new Date(
-            note.createdAt
-          ).toLocaleString()}\nUpdated: ${new Date(note.updatedAt).toLocaleString()}`,
+          text: `# ${note.title}\n${note.content}`,
         },
       ],
     };
@@ -85,14 +69,17 @@ server.tool(
     content: z.string(),
   },
   async ({ title, content }) => {
-    const note = createNewNote(title, content);
+    const note: Note = {
+      title,
+      content,
+    };
     await saveNote(note);
 
     return {
       content: [
         {
           type: "text",
-          text: `Note created successfully!\n\nID: ${note.id}\nTitle: ${title}`,
+          text: `Note created successfully!\n\nTitle: ${note.title}\nContent: ${note.content}`,
         },
       ],
     };
@@ -104,16 +91,15 @@ server.tool(
   "update-note",
   "Update a note",
   {
-    noteId: z.string(),
-    title: z.string().optional(),
-    content: z.string().optional(),
+    title: z.string(),
+    content: z.string(),
   },
-  async ({ noteId, title, content }) => {
-    const note = await getNoteById(noteId);
+  async ({ title, content }) => {
+    const note = await getNote(title);
 
     if (!note) {
       return {
-        content: [{ type: "text", text: `Note with ID "${noteId}" not found.` }],
+        content: [{ type: "text", text: `Note with title "${title}" not found.` }],
       };
     }
 
@@ -126,14 +112,13 @@ server.tool(
       note.content = content;
     }
 
-    note.updatedAt = new Date().toISOString();
     await saveNote(note);
 
     return {
       content: [
         {
           type: "text",
-          text: `Note updated successfully!\n\nID: ${noteId}\nTitle: ${note.title}`,
+          text: `Note updated successfully!\n\nTitle: ${note.title}`,
         },
       ],
     };
@@ -145,17 +130,17 @@ server.tool(
   "delete-note",
   "Delete a note",
   {
-    noteId: z.string(),
+    noteTitle: z.string(),
   },
-  async ({ noteId }) => {
-    const deleted = await deleteNoteById(noteId);
+  async ({ noteTitle }) => {
+    const deleted = await deleteNote(noteTitle);
 
     if (!deleted) {
       return {
         content: [
           {
             type: "text",
-            text: `Note with ID "${noteId}" not found or could not be deleted.`,
+            text: `Note with title "${noteTitle}" not found or could not be deleted.`,
           },
         ],
       };
@@ -165,7 +150,7 @@ server.tool(
       content: [
         {
           type: "text",
-          text: `Note with ID "${noteId}" was successfully deleted.`,
+          text: `Note with title "${noteTitle}" was successfully deleted.`,
         },
       ],
     };
@@ -173,12 +158,9 @@ server.tool(
 );
 
 async function main(): Promise<void> {
-  // Ensure notes directory exists on startup
   await ensureNotesDir();
-
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Note Taker MCP Server running on stdio");
 }
 
 main().catch((error) => {

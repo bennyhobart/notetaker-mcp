@@ -1,23 +1,48 @@
-import { createNewNote } from "../noteService.js";
+import { ensureNotesDir, deleteNote, getAllNotes, getNote, saveNote, Note } from "../noteService";
 
 describe("Note Service", () => {
-  describe("createNewNote", () => {
-    it("should create a note with the correct structure", () => {
-      // Given
-      const title = "Test Note";
-      const content = "This is a test note content";
+  const testNote: Note = {
+    title: "Test Note",
+    content: "This is a test note.",
+  };
 
-      // When
-      const note = createNewNote(title, content);
+  beforeAll(async () => {
+    await ensureNotesDir();
+  });
 
-      // Then
-      expect(note.title).toEqual("Test Note");
-      expect(note.content).toEqual("This is a test note content");
-      expect(note.id).toBeDefined();
-      expect(note.id.length).toBeGreaterThan(0);
-      expect(note.createdAt).toBeDefined();
-      expect(note.updatedAt).toBeDefined();
-      expect(note.createdAt).toEqual(note.updatedAt);
-    });
+  afterEach(async () => {
+    await deleteNote(testNote.title);
+  });
+
+  it("should create a note", async () => {
+    await saveNote(testNote);
+    const notes = await getAllNotes();
+    expect(notes).toContainEqual(testNote);
+  });
+
+  it("should get a note by ID", async () => {
+    await saveNote(testNote);
+    const note = await getNote(testNote.title);
+    expect(note).toEqual(testNote);
+  });
+
+  it("should return null for a non-existent note", async () => {
+    const note = await getNote("NonExistentNote");
+    expect(note).toBeNull();
+  });
+
+  it("should update a note", async () => {
+    await saveNote(testNote);
+    const updatedNote = { ...testNote, content: "Updated content" };
+    await saveNote(updatedNote);
+    const fetchedNote = await getNote(testNote.title);
+    expect(fetchedNote).toEqual(updatedNote);
+  });
+
+  it("should delete a note", async () => {
+    await saveNote(testNote);
+    await deleteNote(testNote.title);
+    const deletedNote = await getNote(testNote.title);
+    expect(deletedNote).toBeNull();
   });
 });
