@@ -36,6 +36,31 @@ export async function getAllNotes(): Promise<Note[]> {
   return notes;
 }
 
+/**
+ * Search for notes containing the specified keywords in title or content
+ * @param query The search query string
+ * @returns Array of notes matching the search criteria
+ */
+export async function searchNotes(query: string): Promise<Note[]> {
+  const allNotes = await getAllNotes();
+  const searchTerms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((term) => term.length > 0);
+
+  if (searchTerms.length === 0) {
+    return allNotes;
+  }
+
+  return allNotes.filter((note) => {
+    const titleLower = note.title.toLowerCase();
+    const contentLower = note.content.toLowerCase();
+
+    // Check if any search term is present in the title or content
+    return searchTerms.some((term) => titleLower.includes(term) || contentLower.includes(term));
+  });
+}
+
 export async function getNote(noteTitle: string): Promise<Note | null> {
   await ensureNotesDir();
   const notePath = path.join(NOTES_DIR, `${noteTitle}.md`);

@@ -1,7 +1,15 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { ensureNotesDir, getAllNotes, getNote, saveNote, deleteNote, Note } from "./noteService.js";
+import {
+  ensureNotesDir,
+  getAllNotes,
+  getNote,
+  saveNote,
+  deleteNote,
+  searchNotes,
+  Note,
+} from "./noteService.js";
 
 // Create server instance
 const server = new McpServer({
@@ -32,6 +40,97 @@ server.tool("list-notes", "List all notes", {}, async () => {
     ],
   };
 });
+
+// Search notes
+server.tool(
+  "search-notes",
+  "Search notes by keywords",
+  {
+    query: z.string().describe("Keywords to search for in note titles and content"),
+  },
+  async ({ query }) => {
+    const notes = await searchNotes(query);
+
+    if (notes.length === 0) {
+      return {
+        content: [{ type: "text", text: `No notes found matching "${query}".` }],
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Found ${notes.length} note(s) matching "${query}":\n\n${notes
+            .map((note) => {
+              // Get a short snippet from the content containing the query term if possible
+              const snippet = getContentSnippet(note.content, query, 100);
+              return `- ${note.title}\n  ${snippet}`;
+            })
+            .join("\n\n")}`,
+        },
+      ],
+    };
+  }
+);
+
+// Helper function to extract a snippet of content around the search query
+function getContentSnippet(content: string, query: string, maxLength: number = 100): string {
+  const lowerContent = content.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+
+  // Find position of the first search term in the content
+  const searchTerms = lowerQuery.split(/\s+/).filter((term) => term.length > 0);
+
+  // Default to start of content
+  let position = 0;
+
+  // Try to find any of the search terms in the content
+  for (const term of searchTerms) {
+    const pos = lowerContent.indexOf(term);
+    if (pos !== -1) {
+      position = pos;
+      break;
+    }
+  }
+
+  // Calculate start and end positions for the snippet
+  let start = Math.max(0, position - maxLength / 2);
+  let end = Math.min(content.length, start + maxLength);
+
+  // Adjust start if end was capped
+  if (end === content.length) {
+    start = Math.max(0, end - maxLength);
+  }
+
+  // Try to start and end at word boundaries
+  if (start > 0) {
+    const nextSpace = content.indexOf(" ", start);
+    if (nextSpace !== -1 && nextSpace < position) {
+      start = nextSpace + 1;
+    }
+  }
+
+  if (end < content.length) {
+    const lastSpace = content.lastIndexOf(" ", end);
+    if (lastSpace !== -1 && lastSpace > position) {
+      end = lastSpace;
+    }
+  }
+
+  let snippet = content.substring(start, end);
+
+  // Add ellipses if needed
+  if (start > 0) {
+    snippet = "..." + snippet;
+  }
+
+  if (end < content.length) {
+    snippet = snippet + "...";
+  }
+
+  return snippet;
+}
 
 // Read a note by ID
 server.tool(
