@@ -136,3 +136,5 @@ npm test -- --testNamePattern="should create a note"
 ## Development Best Practices
 
 - Never commit code with the claude attribution
+- Remember to use puppeteer to validate your changes when updating the ui
+- Remember to use localhost:3001 when checking out your changes, this is the development vite server, localhost:3000 is for "production" build testing
