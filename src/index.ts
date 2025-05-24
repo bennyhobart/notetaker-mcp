@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import {
   ensureNotesDir,
+  initializeSearch,
   getAllNotes,
   getNote,
   saveNote,
@@ -252,6 +253,7 @@ server.tool(
 
 async function main(): Promise<void> {
   await ensureNotesDir();
+  await initializeSearch();
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

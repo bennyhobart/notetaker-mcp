@@ -2,11 +2,12 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 import matter from "gray-matter";
+import { searchService } from "./searchService.js";
 
 export const NOTES_DIR = path.join(os.homedir(), ".notetaker-mcp", "notes");
 
 // Reserved system fields that users cannot override
-const RESERVED_FIELDS = ["title", "content", "createdAt", "updatedAt"];
+const RESERVED_FIELDS = ["title", "createdAt", "updatedAt"];
 
 // Note type definition
 export interface Note {
@@ -21,6 +22,12 @@ export async function ensureNotesDir(): Promise<void> {
   } catch {
     await fs.mkdir(NOTES_DIR, { recursive: true });
   }
+}
+
+// Initialize search index with all notes
+export async function initializeSearch(): Promise<void> {
+  const notes = await getAllNotes();
+  await searchService.initialize(notes);
 }
 
 // Helper functions for note operations
@@ -44,26 +51,19 @@ export async function getAllNotes(): Promise<Note[]> {
 /**
  * Search for notes containing the specified keywords in title or content
  * @param query The search query string
- * @returns Array of notes matching the search criteria
+ * @returns Array of notes matching the search criteria, ranked by relevance
  */
 export async function searchNotes(query: string): Promise<Note[]> {
-  const allNotes = await getAllNotes();
-  const searchTerms = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((term) => term.length > 0);
-
-  if (searchTerms.length === 0) {
-    return allNotes;
+  if (!query.trim()) {
+    return getAllNotes();
   }
 
-  return allNotes.filter((note) => {
-    const titleLower = note.title.toLowerCase();
-    const contentLower = note.content.toLowerCase();
+  // If search service is not initialized, initialize it first
+  if (!searchService.initialized) {
+    await initializeSearch();
+  }
 
-    // Check if any search term is present in the title or content
-    return searchTerms.some((term) => titleLower.includes(term) || contentLower.includes(term));
-  });
+  return searchService.search(query);
 }
 
 // Sanitize note title to prevent path traversal
@@ -105,14 +105,22 @@ export async function saveNote(note: Note): Promise<void> {
   const existingFrontmatter = existingNote ? matter(existingNote.content).data : {};
 
   const fullMetadata = {
-    ...userMetadata,
+    title: sanitizedTitle,
     createdAt: existingFrontmatter.createdAt || now,
     updatedAt: now,
+    ...userMetadata,
   };
 
   // Generate file content with enhanced frontmatter
   const fileContent = matter.stringify(content, fullMetadata);
   await fs.writeFile(notePath, fileContent, "utf-8");
+
+  // Update search index
+  const updatedNote: Note = {
+    title: note.title,
+    content: fileContent,
+  };
+  searchService.updateNote(updatedNote);
 }
 
 export async function deleteNote(noteTitle: string): Promise<boolean> {
@@ -123,6 +131,10 @@ export async function deleteNote(noteTitle: string): Promise<boolean> {
   try {
     await fs.access(notePath);
     await fs.unlink(notePath);
+
+    // Remove from search index
+    searchService.removeNote(noteTitle);
+
     return true;
   } catch (e) {
     return false;
