@@ -1,0 +1,12 @@
+{
+  "watch": ["src"],
+  "ext": "ts",
+  "ignore": ["dist", "node_modules", "*.test.ts", "**/*.test.ts"],
+  "delay": 500,
+  "exec": "npm run build && npm run start",
+  "colours": true,
+  "restartable": "rs",
+  "env": {
+    "NODE_ENV": "development"
+  }
+}

@@ -42,6 +42,8 @@ describe("Visualization Service", () => {
     for (const note of testNotes) {
       await deleteNote(note.title);
     }
+    // Also clean up the testnote.md that seems to be left over
+    await deleteNote("testnote");
   });
 
   afterEach(async () => {
@@ -49,6 +51,7 @@ describe("Visualization Service", () => {
     for (const note of testNotes) {
       await deleteNote(note.title);
     }
+    await deleteNote("testnote");
   });
 
   describe("generateVisualizationData", () => {

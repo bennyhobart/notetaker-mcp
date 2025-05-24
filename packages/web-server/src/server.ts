@@ -26,8 +26,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Serve static files (including our visualization.html)
-app.use(express.static(path.join(__dirname, "../../..", "public")));
+// Serve static files from our public directory
+app.use(express.static(path.join(__dirname, "..", "public")));
 
 // API Routes
 
@@ -157,9 +157,9 @@ app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "Server is running", timestamp: new Date().toISOString() });
 });
 
-// Serve the visualization page at root
+// Serve the index page at root
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../../..", "visualization.html"));
+  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
 
 // Initialize and start server
