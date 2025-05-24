@@ -1,5 +1,6 @@
 import {
   ensureNotesDir,
+  initializeSearch,
   deleteNote,
   getAllNotes,
   getNote,
@@ -223,6 +224,244 @@ describe("Note Service", () => {
 
       // Clean up
       await deleteNote('test<>:|?*"/\\note');
+    });
+  });
+
+  describe("Search Functionality", () => {
+    const searchTestNotes: Note[] = [
+      {
+        title: "JavaScript Tutorial",
+        content: "Learn JavaScript programming with examples and best practices.",
+      },
+      {
+        title: "Python Guide",
+        content: "A comprehensive guide to Python development.",
+      },
+      {
+        title: "Web Development",
+        content: "HTML, CSS, and JavaScript for modern web applications.",
+      },
+      {
+        title: "Database Design",
+        content: "SQL and NoSQL database design principles.",
+      },
+    ];
+
+    beforeAll(async () => {
+      await ensureNotesDir();
+      await initializeSearch();
+    });
+
+    beforeEach(async () => {
+      // Create test notes
+      for (const note of searchTestNotes) {
+        await saveNote(note);
+      }
+    });
+
+    afterEach(async () => {
+      // Clean up test notes
+      for (const note of searchTestNotes) {
+        await deleteNote(note.title);
+      }
+    });
+
+    describe("Basic Search", () => {
+      it("should find notes by title", async () => {
+        const results = await searchNotes("JavaScript");
+        expect(results.length).toBeGreaterThan(0);
+        expect(results.some((note) => note.title === "JavaScript Tutorial")).toBe(true);
+      });
+
+      it("should find notes by content", async () => {
+        const results = await searchNotes("programming");
+        expect(results.length).toBeGreaterThan(0);
+        expect(results.some((note) => note.title === "JavaScript Tutorial")).toBe(true);
+      });
+
+      it("should return empty array for no matches", async () => {
+        const results = await searchNotes("nonexistent");
+        expect(results).toEqual([]);
+      });
+
+      it("should return all notes for empty query", async () => {
+        const results = await searchNotes("");
+        expect(results.length).toBe(searchTestNotes.length);
+      });
+
+      it("should handle case-insensitive search", async () => {
+        const results = await searchNotes("javascript");
+        expect(results.length).toBeGreaterThan(0);
+        expect(results.some((note) => note.title === "JavaScript Tutorial")).toBe(true);
+      });
+    });
+
+    describe("Advanced Search Features", () => {
+      it("should support fuzzy search for typos", async () => {
+        const results = await searchNotes("javasript"); // missing 'c'
+        expect(results.length).toBeGreaterThan(0);
+        expect(results.some((note) => note.title === "JavaScript Tutorial")).toBe(true);
+      });
+
+      it("should support prefix search", async () => {
+        const results = await searchNotes("java");
+        expect(results.length).toBeGreaterThan(0);
+        expect(results.some((note) => note.title === "JavaScript Tutorial")).toBe(true);
+      });
+
+      it("should boost title matches over content matches", async () => {
+        const results = await searchNotes("JavaScript");
+        expect(results.length).toBeGreaterThan(0);
+        // The note with "JavaScript" in title should rank higher than content-only matches
+        expect(results[0].title).toBe("JavaScript Tutorial");
+      });
+
+      it("should find multiple terms", async () => {
+        const results = await searchNotes("web development");
+        expect(results.length).toBeGreaterThan(0);
+        expect(results.some((note) => note.title === "Web Development")).toBe(true);
+      });
+    });
+
+    describe("Search After Operations", () => {
+      it("should find newly created notes immediately", async () => {
+        const newNote: Note = {
+          title: "React Components",
+          content: "Building reusable React components for modern applications.",
+        };
+
+        await saveNote(newNote);
+
+        const results = await searchNotes("React");
+        expect(results.length).toBeGreaterThan(0);
+        expect(results.some((note) => note.title === "React Components")).toBe(true);
+
+        // Clean up
+        await deleteNote(newNote.title);
+      });
+
+      it("should reflect updated note content in search", async () => {
+        const originalNote: Note = {
+          title: "Test Update",
+          content: "Original content about databases.",
+        };
+
+        await saveNote(originalNote);
+
+        // Verify original content is searchable
+        let results = await searchNotes("databases");
+        expect(results.some((note) => note.title === "Test Update")).toBe(true);
+
+        // Update the note
+        const updatedNote: Note = {
+          title: "Test Update",
+          content: "Updated content about machine learning algorithms.",
+        };
+
+        await saveNote(updatedNote);
+
+        // Old content should no longer be found
+        results = await searchNotes("databases");
+        expect(results.some((note) => note.title === "Test Update")).toBe(false);
+
+        // New content should be found
+        results = await searchNotes("machine learning");
+        expect(results.some((note) => note.title === "Test Update")).toBe(true);
+
+        // Clean up
+        await deleteNote(originalNote.title);
+      });
+
+      it("should remove deleted notes from search results", async () => {
+        const tempNote: Note = {
+          title: "Temporary Note",
+          content: "This note will be deleted and should not appear in search.",
+        };
+
+        await saveNote(tempNote);
+
+        // Verify note is searchable
+        let results = await searchNotes("Temporary");
+        expect(results.some((note) => note.title === "Temporary Note")).toBe(true);
+
+        // Delete the note
+        await deleteNote(tempNote.title);
+
+        // Note should no longer be found
+        results = await searchNotes("Temporary");
+        expect(results.some((note) => note.title === "Temporary Note")).toBe(false);
+      });
+
+      it("should maintain search index consistency after multiple operations", async () => {
+        const testNotes: Note[] = [
+          { title: "Note 1", content: "Content about artificial intelligence." },
+          { title: "Note 2", content: "Content about machine learning." },
+          { title: "Note 3", content: "Content about deep learning." },
+        ];
+
+        // Create multiple notes
+        for (const note of testNotes) {
+          await saveNote(note);
+        }
+
+        // Verify all are searchable
+        let results = await searchNotes("learning");
+        expect(results.length).toBe(2); // Note 2 and Note 3
+
+        // Update one note
+        const updatedNote: Note = {
+          title: "Note 2",
+          content: "Content about natural language processing.",
+        };
+        await saveNote(updatedNote);
+
+        // Delete one note
+        await deleteNote("Note 3");
+
+        // Search should reflect changes
+        results = await searchNotes("learning");
+        expect(results.length).toBe(0); // No notes should match "learning" anymore
+
+        results = await searchNotes("processing");
+        expect(results.length).toBe(1); // Only updated Note 2
+        expect(results[0].title).toBe("Note 2");
+
+        results = await searchNotes("artificial");
+        expect(results.length).toBe(1); // Only Note 1
+        expect(results[0].title).toBe("Note 1");
+
+        // Clean up
+        await deleteNote("Note 1");
+        await deleteNote("Note 2");
+      });
+    });
+
+    describe("Search with Frontmatter", () => {
+      it("should search through notes with YAML frontmatter", async () => {
+        const noteWithFrontmatter: Note = {
+          title: "Frontmatter Test",
+          content: `---
+tags: [development, testing]
+priority: high
+author: John Doe
+---
+# Testing YAML Frontmatter
+This note contains YAML frontmatter and should be searchable by both content and metadata.`,
+        };
+
+        await saveNote(noteWithFrontmatter);
+
+        // Search by content
+        let results = await searchNotes("development");
+        expect(results.some((note) => note.title === "Frontmatter Test")).toBe(true);
+
+        // Search by content in body
+        results = await searchNotes("searchable");
+        expect(results.some((note) => note.title === "Frontmatter Test")).toBe(true);
+
+        // Clean up
+        await deleteNote(noteWithFrontmatter.title);
+      });
     });
   });
 });
