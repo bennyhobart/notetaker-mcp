@@ -11,10 +11,6 @@ import {
   ensureNotesDir,
   initializeSearch,
 } from "@notetaker/mcp-server/noteService";
-import {
-  generateVisualizationData,
-  getNotesWithTags,
-} from "@notetaker/mcp-server/visualizationService";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -145,35 +141,6 @@ app.delete("/api/notes/:title", async (req, res) => {
   }
 });
 
-// Visualization API endpoints
-
-// Get tag visualization data
-app.get("/api/visualization/tags", async (req, res) => {
-  try {
-    const data = await generateVisualizationData();
-    res.json({ success: true, data });
-  } catch (error) {
-    console.error("Error generating visualization data:", error);
-    res.status(500).json({ success: false, error: "Failed to generate visualization data" });
-  }
-});
-
-// Get notes with specific tags
-app.post("/api/visualization/notes-by-tags", async (req, res) => {
-  try {
-    const { tags } = req.body;
-    if (!Array.isArray(tags)) {
-      return res.status(400).json({ success: false, error: "Tags must be an array" });
-    }
-
-    const notes = await getNotesWithTags(tags);
-    res.json({ success: true, data: notes });
-  } catch (error) {
-    console.error("Error getting notes by tags:", error);
-    res.status(500).json({ success: false, error: "Failed to get notes by tags" });
-  }
-});
-
 // Health check endpoints
 app.get("/health", (req, res) => {
   res.json({
@@ -212,7 +179,7 @@ async function startServer(): Promise<void> {
 
     app.listen(config.port, () => {
       console.log(`\n🚀 Web server running at http://localhost:${config.port}`);
-      console.log(`📊 Visit http://localhost:${config.port} to view your notes visualization`);
+      console.log(`📝 Visit http://localhost:${config.port} to manage your notes`);
       console.log(`🔗 API available at http://localhost:${config.port}/api/*`);
       console.log(`❤️  Health check: http://localhost:${config.port}/health`);
       console.log(`🔧 Environment: ${config.nodeEnv}\n`);

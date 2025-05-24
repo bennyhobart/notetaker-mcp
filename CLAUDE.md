@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **monorepo workspace** containing:
 1. **MCP Server** - Model Context Protocol server for note-taking and management
-2. **Web Server** - HTTP bridge and interactive tag visualization system
+2. **Web Server** - HTTP bridge and clean React interface
 
-Both packages work together to provide a comprehensive note management platform with AI assistant integration and web-based visualization.
+Both packages work together to provide a streamlined note management platform with AI assistant integration and web-based interface.
 
 ## Architecture
 
@@ -17,8 +17,7 @@ Both packages work together to provide a comprehensive note management platform 
 This project uses **npm workspaces** with two packages:
 
 - **`packages/mcp-server/`** - Core MCP server functionality
-- **`packages/web-server/`** - HTTP API and web visualization
-- **`public/`** - Static web assets for visualization interface
+- **`packages/web-server/`** - HTTP API and React web interface
 
 ### Core Components
 
@@ -40,23 +39,18 @@ This project uses **npm workspaces** with two packages:
   - Real-time index updates when notes are modified
   - Supports prefix search and typo tolerance
 
-- **`visualizationService.ts`**: Tag analysis and relationship mapping
-  - Extracts tags from YAML frontmatter across all notes
-  - Calculates tag frequencies and co-occurrence relationships
-  - Provides data for interactive tag visualization
 
 #### Web Server (`packages/web-server/src/`)
 
 - **`server.ts`**: Express.js HTTP server with React SPA support
   - Exposes all MCP functionality as REST API endpoints
-  - Serves built React application for interactive visualization
+  - Serves built React application for note management
   - Provides environment-based configuration and robust static file serving
   - Imports and uses MCP server functions via workspace references
 
 - **`client/`**: React frontend application
   - Built with React 19, TypeScript, and TailwindCSS
-  - Interactive tag visualization using D3.js (NetworkGraph, TagCloud)
-  - Real-time note management interface (NotesList, NotesView)
+  - Clean note management interface (NotesList, NotesView)
   - Uses Vite for development and production builds
 
 ### Data Model
@@ -75,7 +69,7 @@ Files are stored with this format:
 createdAt: 2024-01-15T10:30:00Z
 updatedAt: 2024-01-16T14:20:00Z
 priority: high
-tags: [work, urgent]
+category: work
 ---
 # Note Title
 Markdown content here...
@@ -135,7 +129,7 @@ npm test -- --testNamePattern="should create a note"
 - **Search Functionality**: Searches both title and content fields with MiniSearch
 - **Security**: Path traversal protection via title sanitization removes dangerous characters
 - **Module System**: ES modules configuration requires `--experimental-vm-modules` flag for Jest
-- **Frontend Build**: React app built with Vite, uses npm dependency for D3.js (not CDN)
+- **Frontend Build**: React app built with Vite for fast development and production builds
 - **Environment Configuration**: Simple validation without external libraries, supports both development and production modes
 - **Static File Serving**: Robust path resolution that works in different deployment scenarios
 

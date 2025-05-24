@@ -12,10 +12,6 @@ import {
   ensureNotesDir,
   initializeSearch,
 } from "@notetaker/mcp-server/noteService";
-import {
-  generateVisualizationData,
-  getNotesWithTags,
-} from "@notetaker/mcp-server/visualizationService";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -119,33 +115,6 @@ function createTestApp(): express.Application {
     } catch (error) {
       console.error("Error deleting note:", error);
       res.status(500).json({ success: false, error: "Failed to delete note" });
-    }
-  });
-
-  // Get tag visualization data
-  app.get("/api/visualization/tags", async (req, res) => {
-    try {
-      const data = await generateVisualizationData();
-      res.json({ success: true, data });
-    } catch (error) {
-      console.error("Error generating visualization data:", error);
-      res.status(500).json({ success: false, error: "Failed to generate visualization data" });
-    }
-  });
-
-  // Get notes with specific tags
-  app.post("/api/visualization/notes-by-tags", async (req, res) => {
-    try {
-      const { tags } = req.body;
-      if (!Array.isArray(tags)) {
-        return res.status(400).json({ success: false, error: "Tags must be an array" });
-      }
-
-      const notes = await getNotesWithTags(tags);
-      res.json({ success: true, data: notes });
-    } catch (error) {
-      console.error("Error getting notes by tags:", error);
-      res.status(500).json({ success: false, error: "Failed to get notes by tags" });
     }
   });
 
@@ -294,59 +263,6 @@ describe("Web Server API", () => {
 
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBe("Title and content are required");
-    });
-  });
-
-  describe("Visualization API", () => {
-    const testNoteWithTags = {
-      title: "Tagged Note",
-      content:
-        "---\ntags: [visualization, test]\n---\n# Tagged Note\nThis note has tags for testing visualization.",
-    };
-
-    beforeEach(async () => {
-      await deleteNote(testNoteWithTags.title);
-    });
-
-    afterEach(async () => {
-      await deleteNote(testNoteWithTags.title);
-    });
-
-    it("should get visualization data", async () => {
-      // Create a test note with tags
-      await saveNote(testNoteWithTags);
-
-      const response = await request(app).get("/api/visualization/tags").expect(200);
-
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty("tags");
-      expect(response.body.data).toHaveProperty("connections");
-      expect(response.body.data).toHaveProperty("totalNotes");
-      expect(Array.isArray(response.body.data.tags)).toBe(true);
-      expect(Array.isArray(response.body.data.connections)).toBe(true);
-    });
-
-    it("should get notes by tags", async () => {
-      // Create a test note with tags
-      await saveNote(testNoteWithTags);
-
-      const response = await request(app)
-        .post("/api/visualization/notes-by-tags")
-        .send({ tags: ["test"] })
-        .expect(200);
-
-      expect(response.body.success).toBe(true);
-      expect(Array.isArray(response.body.data)).toBe(true);
-    });
-
-    it("should validate tags parameter", async () => {
-      const response = await request(app)
-        .post("/api/visualization/notes-by-tags")
-        .send({ tags: "not-an-array" })
-        .expect(400);
-
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe("Tags must be an array");
     });
   });
 });

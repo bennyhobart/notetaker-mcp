@@ -13,10 +13,6 @@
       "import": "./dist/noteService.js",
       "types": "./dist/noteService.d.ts"
     },
-    "./visualizationService": {
-      "import": "./dist/visualizationService.js",
-      "types": "./dist/visualizationService.d.ts"
-    },
     "./searchService": {
       "import": "./dist/searchService.js",
       "types": "./dist/searchService.d.ts"

@@ -1,30 +1,27 @@
 # Note Taker MCP Workspace
 
-A comprehensive note-taking and visualization platform with MCP server integration and interactive web interface.
+A streamlined note-taking platform with MCP server integration and clean web interface focused on core note management.
 
 ## Architecture
 
 This project is organized as a **monorepo workspace** with two main packages:
 
 - **`packages/mcp-server/`** - Model Context Protocol server for AI assistants
-- **`packages/web-server/`** - HTTP bridge and interactive tag visualization
-- **`public/`** - Web interface for note visualization
+- **`packages/web-server/`** - HTTP bridge and React web interface
 
 ## Features
 
 ### MCP Server
 - 📝 **Full CRUD operations** for markdown notes with YAML frontmatter  
 - 🔍 **Advanced search** with fuzzy matching and relevance ranking
-- 🏷️ **Tag system** with automatic metadata management
+- 📋 **Metadata management** with automatic timestamps
 - 🔒 **Security** with path sanitization and validation
 
-### Web Visualization  
+### Web Interface  
 - 🌐 **HTTP API** exposing all MCP functionality as REST endpoints
 - ⚛️ **React frontend** built with TypeScript and TailwindCSS
-- 📊 **Interactive tag cloud** showing tag frequency and relationships
-- 🕸️ **Network graph** displaying tag co-occurrence connections using D3.js
-- 🎯 **Real-time filtering** by tag combinations
-- 📱 **Responsive interface** with hot module reloading
+- 📱 **Clean, responsive interface** focused on note management
+- 🔄 **Hot module reloading** for development
 
 ## Development
 
@@ -59,7 +56,7 @@ npm run build -w packages/web-server
    This starts the MCP server, API server, and React frontend with hot reloading.
 
 3. **Visit the application:**
-   Open http://localhost:3000 in your browser to interact with your notes and visualize tag relationships.
+   Open http://localhost:3000 in your browser to manage your notes.
 
 ## Production Deployment
 
@@ -78,7 +75,7 @@ npm run build -w packages/web-server
 The `npm run dev` command runs all services concurrently:
 - **MCP Server** - Core note management functionality  
 - **API Server** - Express.js HTTP bridge with auto-restart
-- **React Frontend** - Interactive UI with hot module reloading
+- **React Frontend** - Clean note management UI with hot module reloading
 
 For individual development:
 ```bash
@@ -90,7 +87,7 @@ npm run dev:client -w packages/web-server # React dev server only
 ### Testing
 
 ```bash
-# Run all tests (154 total)
+# Run all tests (134 total)
 npm test
 
 # Run tests for specific package
@@ -140,8 +137,6 @@ POST   /api/notes              - Create note
 PUT    /api/notes/:title       - Update note
 DELETE /api/notes/:title       - Delete note
 
-GET    /api/visualization/tags           - Get tag analysis data
-POST   /api/visualization/notes-by-tags - Filter notes by tags
 GET    /api/health                      - Health check
 ```
 
@@ -169,8 +164,8 @@ Notes are stored as Markdown files with YAML frontmatter:
 title: "My Note"
 createdAt: "2024-01-15 10:30"
 updatedAt: "2024-01-16 14:20"
-tags: [work, project, important]
 priority: high
+category: work
 ---
 # My Note Title
 
@@ -184,19 +179,17 @@ notetaker-mcp/
 ├── packages/
 │   ├── mcp-server/          # MCP server implementation
 │   │   ├── src/
-│   │   │   ├── index.ts     # MCP server entry point
-│   │   │   ├── noteService.ts        # Core note operations
-│   │   │   ├── searchService.ts      # Search functionality
-│   │   │   ├── visualizationService.ts  # Tag analysis
-│   │   │   └── __tests__/   # Test files
+│   │   │   ├── index.ts          # MCP server entry point
+│   │   │   ├── noteService.ts    # Core note operations
+│   │   │   ├── searchService.ts  # Search functionality
+│   │   │   └── __tests__/        # Test files
 │   │   └── dist/            # Built output
-│   └── web-server/          # HTTP bridge & visualization
+│   └── web-server/          # HTTP bridge & React interface
 │       ├── src/
 │       │   ├── server.ts    # Express server
+│       │   ├── client/      # React frontend
 │       │   └── __tests__/   # Test files
 │       └── dist/            # Built output
-├── public/
-│   └── index.html           # Tag visualization interface
 ├── jest.config.base.mjs     # Shared Jest configuration
 ├── tsconfig.json            # Base TypeScript config
 └── tsconfig.build.json      # Build configuration
@@ -218,7 +211,6 @@ This ensures all committed code follows the project's standards.
 - **Express.js** - Web server framework
 - **Vite** - Build tool and dev server
 - **TailwindCSS** - Utility-first CSS framework
-- **D3.js** - Interactive visualizations
 - **Jest** - Testing framework
 - **ESLint + Prettier** - Code quality tools
 - **MiniSearch** - Full-text search engine
