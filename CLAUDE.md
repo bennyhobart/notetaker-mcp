@@ -47,11 +47,17 @@ This project uses **npm workspaces** with two packages:
 
 #### Web Server (`packages/web-server/src/`)
 
-- **`server.ts`**: Express.js HTTP server
+- **`server.ts`**: Express.js HTTP server with React SPA support
   - Exposes all MCP functionality as REST API endpoints
-  - Serves interactive tag visualization interface
-  - Provides CORS support and JSON error handling
+  - Serves built React application for interactive visualization
+  - Provides environment-based configuration and robust static file serving
   - Imports and uses MCP server functions via workspace references
+
+- **`client/`**: React frontend application
+  - Built with React 19, TypeScript, and TailwindCSS
+  - Interactive tag visualization using D3.js (NetworkGraph, TagCloud)
+  - Real-time note management interface (NotesList, NotesView)
+  - Uses Vite for development and production builds
 
 ### Data Model
 
@@ -85,20 +91,18 @@ Markdown content here...
 
 ## Development Commands
 
-### Workspace-Level Commands
-- `npm run build` - Build all packages using TypeScript project references
-- `npm test` - Run all 154 tests across both packages
-- `npm run test:mcp` - Run only MCP server tests (62 tests)
-- `npm run test:web` - Run only web server tests (92 tests)  
+### Primary Workflow Commands
+- `npm run dev` - Start full development environment (MCP server + API + React UI with hot reloading)
+- `npm run build` - Build all packages for production
+- `npm start` - Start production server (serves built React app + API)
+
+### Testing Commands
+- `npm test` - Run all tests across both packages
+- `npm run test:mcp` - Run only MCP server tests
+- `npm run test:web` - Run only web server tests  
 - `npm run test:coverage` - Generate coverage report for all packages
 
-### Package-Specific Commands
-- `npm run start:mcp` - Start the MCP server
-- `npm run start:web` - Start the web server (with visualization at http://localhost:3000)
-- `npm run dev:mcp` - Build and start MCP server in development mode
-- `npm run dev:web` - Build and start web server in development mode
-
-### Code Quality (All Packages)
+### Code Quality Commands
 - `npm run lint` - Check code style with ESLint across all packages
 - `npm run lint:fix` - Auto-fix ESLint issues
 - `npm run format` - Format code with Prettier  
@@ -115,14 +119,26 @@ npm run build -w packages/web-server
 npm run test -w packages/mcp-server
 npm run test -w packages/web-server
 
+# Development mode for specific package
+npm run dev -w packages/mcp-server      # MCP server only
+npm run dev -w packages/web-server      # API server only  
+npm run dev:client -w packages/web-server # React dev server only
+
 # Run specific test pattern
 npm test -- --testNamePattern="should create a note"
 ```
 
 ## Important Implementation Notes
 
-- Tests use real filesystem operations (not mocked) - ensure proper cleanup in test teardown
-- Frontmatter parsing happens on both read and write operations
-- Search functionality searches both title and content fields
-- Path traversal protection via title sanitization removes dangerous characters
-- ES modules configuration requires `--experimental-vm-modules` flag for Jest
+- **File Operations**: Tests use real filesystem operations (not mocked) - ensure proper cleanup in test teardown
+- **Frontmatter Processing**: Parsing happens on both read and write operations
+- **Search Functionality**: Searches both title and content fields with MiniSearch
+- **Security**: Path traversal protection via title sanitization removes dangerous characters
+- **Module System**: ES modules configuration requires `--experimental-vm-modules` flag for Jest
+- **Frontend Build**: React app built with Vite, uses npm dependency for D3.js (not CDN)
+- **Environment Configuration**: Simple validation without external libraries, supports both development and production modes
+- **Static File Serving**: Robust path resolution that works in different deployment scenarios
+
+## Development Best Practices
+
+- Never commit code with the claude attribution

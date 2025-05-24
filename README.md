@@ -20,10 +20,11 @@ This project is organized as a **monorepo workspace** with two main packages:
 
 ### Web Visualization  
 - 🌐 **HTTP API** exposing all MCP functionality as REST endpoints
+- ⚛️ **React frontend** built with TypeScript and TailwindCSS
 - 📊 **Interactive tag cloud** showing tag frequency and relationships
-- 🕸️ **Network graph** displaying tag co-occurrence connections
+- 🕸️ **Network graph** displaying tag co-occurrence connections using D3.js
 - 🎯 **Real-time filtering** by tag combinations
-- 📱 **Responsive interface** built with D3.js
+- 📱 **Responsive interface** with hot module reloading
 
 ## Development
 
@@ -44,18 +45,46 @@ npm run build -w packages/mcp-server
 npm run build -w packages/web-server
 ```
 
-### Running
+## Quick Start
 
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Start development environment:**
+   ```bash
+   npm run dev
+   ```
+   This starts the MCP server, API server, and React frontend with hot reloading.
+
+3. **Visit the application:**
+   Open http://localhost:3000 in your browser to interact with your notes and visualize tag relationships.
+
+## Production Deployment
+
+1. **Build for production:**
+   ```bash
+   npm run build
+   ```
+
+2. **Start production server:**
+   ```bash
+   npm start
+   ```
+
+## Development
+
+The `npm run dev` command runs all services concurrently:
+- **MCP Server** - Core note management functionality  
+- **API Server** - Express.js HTTP bridge with auto-restart
+- **React Frontend** - Interactive UI with hot module reloading
+
+For individual development:
 ```bash
-# Start MCP server
-npm run start:mcp
-
-# Start web visualization server
-npm run start:web
-
-# Development mode (rebuild + start)
-npm run dev:mcp
-npm run dev:web
+npm run dev -w packages/mcp-server      # MCP server only
+npm run dev -w packages/web-server      # API server only  
+npm run dev:client -w packages/web-server # React dev server only
 ```
 
 ### Testing
@@ -185,7 +214,10 @@ This ensures all committed code follows the project's standards.
 
 - **TypeScript** - Type-safe development
 - **Node.js** - Runtime environment  
+- **React 19** - Frontend framework
 - **Express.js** - Web server framework
+- **Vite** - Build tool and dev server
+- **TailwindCSS** - Utility-first CSS framework
 - **D3.js** - Interactive visualizations
 - **Jest** - Testing framework
 - **ESLint + Prettier** - Code quality tools

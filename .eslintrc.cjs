@@ -25,6 +25,8 @@ module.exports = {
     "packages/*/node_modules/**",
     "*.js",
     "*.mjs",
+    "**/vite.config.ts",
+    "**/postcss.config.js",
   ],
   rules: {
     "@typescript-eslint/explicit-function-return-type": [
@@ -43,4 +45,12 @@ module.exports = {
     ],
     "no-console": ["warn", { allow: ["error", "warn"] }],
   },
+  overrides: [
+    {
+      files: ["**/server.ts", "**/web-server/**/*.ts"],
+      rules: {
+        "no-console": "off", // Allow console statements in server files
+      },
+    },
+  ],
 };

@@ -20,14 +20,36 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+
+// Environment configuration with validation
+const config = {
+  port: parseInt(process.env.PORT || "3000", 10),
+  nodeEnv: process.env.NODE_ENV || "development",
+  isProduction: process.env.NODE_ENV === "production",
+  isDevelopment: process.env.NODE_ENV !== "production",
+};
+
+// Basic validation
+if (isNaN(config.port) || config.port < 1 || config.port > 65535) {
+  throw new Error("Invalid PORT environment variable");
+}
+
+// Development logging
+if (config.isDevelopment) {
+  app.use((req, res, next) => {
+    console.log(`🌐 ${req.method} ${req.path}`);
+    next();
+  });
+}
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from our public directory
-app.use(express.static(path.join(__dirname, "..", "public")));
+// Serve static files from the built React app
+const clientDistPath = path.join(__dirname, "..", "dist", "client");
+
+app.use(express.static(clientDistPath));
 
 // API Routes
 
@@ -152,14 +174,33 @@ app.post("/api/visualization/notes-by-tags", async (req, res) => {
   }
 });
 
-// Health check endpoint
-app.get("/api/health", (req, res) => {
-  res.json({ success: true, message: "Server is running", timestamp: new Date().toISOString() });
+// Health check endpoints
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    environment: config.nodeEnv,
+    version: process.env.npm_package_version || "1.0.0",
+  });
 });
 
-// Serve the index page at root
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    api: "connected",
+    mcp: "connected",
+    message: "Server is running",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Serve the React app for all non-API routes (SPA fallback)
+app.get("*", (req, res) => {
+  // Don't serve index.html for API routes
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ success: false, error: "API endpoint not found" });
+  }
+  res.sendFile(path.join(clientDistPath, "index.html"));
 });
 
 // Initialize and start server
@@ -169,10 +210,12 @@ async function startServer(): Promise<void> {
     await ensureNotesDir();
     await initializeSearch();
 
-    app.listen(PORT, () => {
-      console.warn(`🚀 Web server running at http://localhost:${PORT}`);
-      console.warn(`📊 Visit http://localhost:${PORT} to view your notes visualization`);
-      console.warn(`🔗 API available at http://localhost:${PORT}/api/*`);
+    app.listen(config.port, () => {
+      console.log(`\n🚀 Web server running at http://localhost:${config.port}`);
+      console.log(`📊 Visit http://localhost:${config.port} to view your notes visualization`);
+      console.log(`🔗 API available at http://localhost:${config.port}/api/*`);
+      console.log(`❤️  Health check: http://localhost:${config.port}/health`);
+      console.log(`🔧 Environment: ${config.nodeEnv}\n`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);
