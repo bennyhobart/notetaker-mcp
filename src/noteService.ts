@@ -4,7 +4,10 @@ import os from "os";
 import matter from "gray-matter";
 import { searchService } from "./searchService.js";
 
-export const NOTES_DIR = path.join(os.homedir(), ".notetaker-mcp", "notes");
+export const NOTES_DIR =
+  process.env.NODE_ENV === "test"
+    ? path.join(os.tmpdir(), "notetaker-mcp-test", "notes")
+    : path.join(os.homedir(), ".notetaker-mcp", "notes");
 
 // Reserved system fields that users cannot override
 const RESERVED_FIELDS = ["title", "createdAt", "updatedAt"];
@@ -100,7 +103,17 @@ export async function saveNote(note: Note): Promise<void> {
   );
 
   // Add/update system metadata
-  const now = new Date().toISOString();
+  const date = new Date();
+  const now =
+    date.getFullYear() +
+    "-" +
+    String(date.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(date.getDate()).padStart(2, "0") +
+    " " +
+    String(date.getHours()).padStart(2, "0") +
+    ":" +
+    String(date.getMinutes()).padStart(2, "0"); // YYYY-MM-DD HH:MM format in local timezone
   const existingNote = await getNote(note.title);
   const existingFrontmatter = existingNote ? matter(existingNote.content).data : {};
 
