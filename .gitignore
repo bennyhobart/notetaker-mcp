@@ -1,4 +1,11 @@
 node_modules/**
 build/**
+dist/**
+packages/*/node_modules/**
+packages/*/build/**
+packages/*/dist/**
+*.tsbuildinfo
+packages/*/*.tsbuildinfo
 .DS_Store
 notes/**
+coverage/**

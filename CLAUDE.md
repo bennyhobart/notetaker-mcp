@@ -4,22 +4,54 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Model Context Protocol (MCP) server** for note-taking and management. It exposes tools that allow AI assistants to create, read, update, delete, and search notes stored as Markdown files with YAML frontmatter.
+This is a **monorepo workspace** containing:
+1. **MCP Server** - Model Context Protocol server for note-taking and management
+2. **Web Server** - HTTP bridge and interactive tag visualization system
+
+Both packages work together to provide a comprehensive note management platform with AI assistant integration and web-based visualization.
 
 ## Architecture
 
+### Workspace Structure
+
+This project uses **npm workspaces** with two packages:
+
+- **`packages/mcp-server/`** - Core MCP server functionality
+- **`packages/web-server/`** - HTTP API and web visualization
+- **`public/`** - Static web assets for visualization interface
+
 ### Core Components
 
-- **`src/index.ts`**: MCP server implementation with tool definitions
+#### MCP Server (`packages/mcp-server/src/`)
+
+- **`index.ts`**: MCP server implementation with tool definitions
   - Registers 6 MCP tools: `list-notes`, `search-notes`, `read-note`, `create-note`, `update-note`, `delete-note`
   - Uses Zod for input validation
   - Returns structured responses with content arrays
 
-- **`src/noteService.ts`**: File system operations and note management
+- **`noteService.ts`**: File system operations and note management
   - Handles YAML frontmatter parsing with `gray-matter`
   - Manages system metadata (createdAt, updatedAt) automatically
   - Sanitizes note titles to prevent path traversal attacks
   - Stores notes in `~/.notetaker-mcp/notes/` as `.md` files
+
+- **`searchService.ts`**: Advanced search functionality with MiniSearch
+  - Full-text search with fuzzy matching and relevance ranking
+  - Real-time index updates when notes are modified
+  - Supports prefix search and typo tolerance
+
+- **`visualizationService.ts`**: Tag analysis and relationship mapping
+  - Extracts tags from YAML frontmatter across all notes
+  - Calculates tag frequencies and co-occurrence relationships
+  - Provides data for interactive tag visualization
+
+#### Web Server (`packages/web-server/src/`)
+
+- **`server.ts`**: Express.js HTTP server
+  - Exposes all MCP functionality as REST API endpoints
+  - Serves interactive tag visualization interface
+  - Provides CORS support and JSON error handling
+  - Imports and uses MCP server functions via workspace references
 
 ### Data Model
 
@@ -53,23 +85,35 @@ Markdown content here...
 
 ## Development Commands
 
-### Core Development
-- `npm run build` - Compile TypeScript and make executable
-- `npm test` - Run all tests (uses ES modules with experimental VM modules)
-- `npm test:watch` - Run tests in watch mode
-- `npm test:coverage` - Run tests with coverage report
+### Workspace-Level Commands
+- `npm run build` - Build all packages using TypeScript project references
+- `npm test` - Run all 154 tests across both packages
+- `npm run test:mcp` - Run only MCP server tests (62 tests)
+- `npm run test:web` - Run only web server tests (92 tests)  
+- `npm run test:coverage` - Generate coverage report for all packages
 
-### Code Quality
-- `npm run lint` - Check code style with ESLint
+### Package-Specific Commands
+- `npm run start:mcp` - Start the MCP server
+- `npm run start:web` - Start the web server (with visualization at http://localhost:3000)
+- `npm run dev:mcp` - Build and start MCP server in development mode
+- `npm run dev:web` - Build and start web server in development mode
+
+### Code Quality (All Packages)
+- `npm run lint` - Check code style with ESLint across all packages
 - `npm run lint:fix` - Auto-fix ESLint issues
-- `npm run format` - Format code with Prettier
+- `npm run format` - Format code with Prettier  
 - `npm run check` - Run both lint and format checks
 - `npm run fix` - Auto-fix both lint and format issues
 
-### Testing Individual Files
+### Individual Package Development
 ```bash
-# Run single test file
-npm test -- noteService.test.ts
+# Build specific package
+npm run build -w packages/mcp-server
+npm run build -w packages/web-server
+
+# Test specific package
+npm run test -w packages/mcp-server
+npm run test -w packages/web-server
 
 # Run specific test pattern
 npm test -- --testNamePattern="should create a note"

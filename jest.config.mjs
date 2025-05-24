@@ -1,17 +1,14 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
+/** @type {import('jest').Config} */
 export default {
-  preset: "ts-jest",
-  testEnvironment: "node",
-  extensionsToTreatAsEsm: [".ts"],
-  transform: {
-    "^.+\\.tsx?$": [
-      "ts-jest",
-      {
-        useESM: true,
-      },
-    ],
-  },
-  moduleNameMapper: {
-    "^(\\.\\.?/.*)\\.js$": "$1",
-  },
+  projects: [
+    '<rootDir>/packages/mcp-server',
+    '<rootDir>/packages/web-server'
+  ],
+  collectCoverageFrom: [
+    'packages/*/src/**/*.ts',
+    '!packages/*/src/**/*.d.ts',
+    '!packages/*/src/**/__tests__/**'
+  ],
+  coverageDirectory: '<rootDir>/coverage',
+  verbose: true
 };

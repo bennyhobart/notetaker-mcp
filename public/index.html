@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes Tag Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .visualization-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .panel h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.2em;
+        }
+        
+        #tagCloud {
+            min-height: 400px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .tag {
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: all 0.3s ease;
+            border: none;
+            font-weight: 500;
+        }
+        
+        .tag:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .tag.selected {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            transform: scale(1.05);
+        }
+        
+        #networkGraph {
+            min-height: 400px;
+        }
+        
+        .notes-panel {
+            grid-column: 1 / -1;
+        }
+        
+        #notesList {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .note-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .note-card:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .note-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .note-preview {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .controls button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .controls button:hover {
+            background: #f8f9fa;
+            border-color: #999;
+        }
+        
+        .stats {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+        }
+        
+        .node {
+            cursor: pointer;
+        }
+        
+        .node text {
+            font-size: 12px;
+            font-family: sans-serif;
+            pointer-events: none;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Notes Tag Visualization</h1>
+        
+        <div class="controls">
+            <button onclick="loadVisualization()">Refresh Data</button>
+            <button onclick="clearSelection()">Clear Selection</button>
+            <span class="stats" id="stats">Loading...</span>
+        </div>
+        
+        <div class="visualization-container">
+            <div class="panel">
+                <h2>Tag Cloud</h2>
+                <div id="tagCloud" class="loading">Loading tags...</div>
+            </div>
+            
+            <div class="panel">
+                <h2>Tag Network</h2>
+                <div id="networkGraph" class="loading">Loading network...</div>
+            </div>
+        </div>
+        
+        <div class="panel notes-panel">
+            <h2>Notes <span id="notesTitle"></span></h2>
+            <div id="notesList"></div>
+        </div>
+    </div>
+
+    <script>
+        let visualizationData = null;
+        let selectedTags = new Set();
+        let allNotes = [];
+
+        // Load and display visualization
+        async function loadVisualization() {
+            try {
+                // Fetch real data from the API
+                visualizationData = await fetchVisualizationData();
+                allNotes = await fetchNotes();
+                
+                updateStats();
+                renderTagCloud();
+                renderNetworkGraph();
+                displayNotes(allNotes);
+            } catch (error) {
+                console.error('Error loading visualization:', error);
+                document.getElementById('tagCloud').innerHTML = 'Error loading data: ' + error.message;
+                document.getElementById('networkGraph').innerHTML = 'Error loading data: ' + error.message;
+                document.getElementById('notesList').innerHTML = 'Error loading notes: ' + error.message;
+            }
+        }
+
+        function updateStats() {
+            const stats = document.getElementById('stats');
+            if (visualizationData) {
+                stats.textContent = `${visualizationData.tags.length} tags, ${visualizationData.totalNotes} notes, ${visualizationData.connections.length} connections`;
+            }
+        }
+
+        function renderTagCloud() {
+            const container = document.getElementById('tagCloud');
+            container.innerHTML = '';
+            
+            if (!visualizationData) return;
+            
+            const maxCount = Math.max(...visualizationData.tags.map(t => t.count));
+            
+            visualizationData.tags.forEach(tag => {
+                const tagElement = document.createElement('button');
+                tagElement.className = 'tag';
+                tagElement.textContent = `${tag.name} (${tag.count})`;
+                
+                // Size based on frequency
+                const fontSize = 12 + (tag.count / maxCount) * 12;
+                tagElement.style.fontSize = `${fontSize}px`;
+                
+                tagElement.onclick = () => toggleTag(tag.name);
+                
+                if (selectedTags.has(tag.name)) {
+                    tagElement.classList.add('selected');
+                }
+                
+                container.appendChild(tagElement);
+            });
+        }
+
+        function renderNetworkGraph() {
+            const container = document.getElementById('networkGraph');
+            container.innerHTML = '';
+            
+            if (!visualizationData || visualizationData.connections.length === 0) {
+                container.innerHTML = '<div class="loading">No tag connections found</div>';
+                return;
+            }
+            
+            const width = container.clientWidth;
+            const height = 400;
+            
+            const svg = d3.select('#networkGraph')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+                
+            // Create nodes from tags
+            const nodes = visualizationData.tags.map(tag => ({
+                id: tag.name,
+                count: tag.count,
+                radius: 5 + (tag.count / Math.max(...visualizationData.tags.map(t => t.count))) * 15
+            }));
+            
+            // Create links from connections
+            const links = visualizationData.connections.map(conn => ({
+                source: conn.source,
+                target: conn.target,
+                weight: conn.weight
+            }));
+            
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(50))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2));
+            
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(links)
+                .enter().append('line')
+                .attr('class', 'link')
+                .attr('stroke-width', d => Math.sqrt(d.weight));
+            
+            const node = svg.append('g')
+                .selectAll('circle')
+                .data(nodes)
+                .enter().append('circle')
+                .attr('class', 'node')
+                .attr('r', d => d.radius)
+                .attr('fill', d => selectedTags.has(d.id) ? '#f5576c' : '#667eea')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended))
+                .on('click', (event, d) => toggleTag(d.id));
+            
+            const label = svg.append('g')
+                .selectAll('text')
+                .data(nodes)
+                .enter().append('text')
+                .text(d => d.id)
+                .attr('font-size', 11)
+                .attr('dx', 15)
+                .attr('dy', 4);
+            
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+                    
+                label
+                    .attr('x', d => d.x)
+                    .attr('y', d => d.y);
+            });
+            
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+            
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+
+        function toggleTag(tagName) {
+            if (selectedTags.has(tagName)) {
+                selectedTags.delete(tagName);
+            } else {
+                selectedTags.add(tagName);
+            }
+            
+            renderTagCloud();
+            renderNetworkGraph();
+            filterNotes();
+        }
+
+        function clearSelection() {
+            selectedTags.clear();
+            renderTagCloud();
+            renderNetworkGraph();
+            displayNotes(allNotes);
+        }
+
+        function filterNotes() {
+            if (selectedTags.size === 0) {
+                displayNotes(allNotes);
+                return;
+            }
+            
+            const filteredNotes = allNotes.filter(note => {
+                return Array.from(selectedTags).every(tag => 
+                    note.tags && note.tags.includes(tag)
+                );
+            });
+            
+            displayNotes(filteredNotes);
+        }
+
+        function displayNotes(notes) {
+            const container = document.getElementById('notesList');
+            const title = document.getElementById('notesTitle');
+            
+            if (selectedTags.size > 0) {
+                title.textContent = `with tags: ${Array.from(selectedTags).join(', ')}`;
+            } else {
+                title.textContent = '';
+            }
+            
+            container.innerHTML = '';
+            
+            if (notes.length === 0) {
+                container.innerHTML = '<div class="loading">No notes found with selected tags</div>';
+                return;
+            }
+            
+            notes.forEach(note => {
+                const noteCard = document.createElement('div');
+                noteCard.className = 'note-card';
+                noteCard.onclick = () => openNote(note.title);
+                
+                noteCard.innerHTML = `
+                    <div class="note-title">${note.title}</div>
+                    <div class="note-preview">${note.preview}</div>
+                `;
+                
+                container.appendChild(noteCard);
+            });
+        }
+
+        function openNote(title) {
+            alert(`Opening note: ${title}\n\nIn a full implementation, this would open the note for editing.`);
+        }
+
+        // API functions to fetch real data
+        async function fetchVisualizationData() {
+            try {
+                const response = await fetch('/api/visualization/tags');
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to fetch visualization data');
+                }
+                return result.data;
+            } catch (error) {
+                console.error('Error fetching visualization data:', error);
+                throw error;
+            }
+        }
+
+        async function fetchNotes() {
+            try {
+                const response = await fetch('/api/notes');
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to fetch notes');
+                }
+                
+                // Transform notes to include preview and tags
+                return result.data.map(note => {
+                    // Extract preview from content (first 100 chars of non-frontmatter content)
+                    const lines = note.content.split('\n');
+                    let contentStart = 0;
+                    
+                    // Skip YAML frontmatter if present
+                    if (lines[0] === '---') {
+                        for (let i = 1; i < lines.length; i++) {
+                            if (lines[i] === '---') {
+                                contentStart = i + 1;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    const contentText = lines.slice(contentStart).join('\n').trim();
+                    const preview = contentText.length > 100 ? 
+                        contentText.substring(0, 100) + '...' : 
+                        contentText;
+                    
+                    // Extract tags from frontmatter
+                    let tags = [];
+                    if (lines[0] === '---') {
+                        const frontmatterLines = lines.slice(1, contentStart - 1);
+                        for (const line of frontmatterLines) {
+                            if (line.trim().startsWith('tags:')) {
+                                // Parse YAML array format: tags: [tag1, tag2] or tags: - tag1
+                                const tagLine = line.substring(line.indexOf(':') + 1).trim();
+                                if (tagLine.startsWith('[') && tagLine.endsWith(']')) {
+                                    // Array format: [tag1, tag2]
+                                    tags = tagLine.slice(1, -1).split(',')
+                                        .map(t => t.trim().replace(/['"]/g, ''))
+                                        .filter(t => t.length > 0);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    
+                    return {
+                        title: note.title,
+                        preview: preview,
+                        tags: tags
+                    };
+                });
+            } catch (error) {
+                console.error('Error fetching notes:', error);
+                throw error;
+            }
+        }
+
+        async function fetchNotesByTags(tags) {
+            try {
+                const response = await fetch('/api/visualization/notes-by-tags', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ tags })
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to fetch notes by tags');
+                }
+                return result.data;
+            } catch (error) {
+                console.error('Error fetching notes by tags:', error);
+                throw error;
+            }
+        }
+
+        // Load visualization on page load
+        window.addEventListener('load', loadVisualization);
+    </script>
+</body>
+</html>

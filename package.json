@@ -1,35 +1,37 @@
 {
+  "name": "notetaker-workspace",
+  "version": "1.0.0",
+  "description": "Notetaker MCP server and web visualization workspace",
   "type": "module",
-  "bin": {
-    "note_taker": "./build/index.js"
-  },
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "build": "tsc && chmod 755 build/index.js",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --ext .ts --fix",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "check-format": "prettier --check \"src/**/*.ts\"",
+    "build": "tsc --build --verbose tsconfig.build.json",
+    "start:mcp": "npm run start -w packages/mcp-server",
+    "start:web": "npm run start -w packages/web-server",
+    "dev:mcp": "npm run dev -w packages/mcp-server",
+    "dev:web": "npm run dev -w packages/web-server",
+    "lint": "eslint packages/*/src --ext .ts",
+    "lint:fix": "eslint packages/*/src --ext .ts --fix",
+    "format": "prettier --write \"packages/*/src/**/*.ts\"",
+    "check-format": "prettier --check \"packages/*/src/**/*.ts\"",
     "check": "npm run lint && npm run check-format",
     "fix": "npm run lint:fix && npm run format",
     "prepare": "husky",
-    "test": "NODE_ENV=test node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js",
-    "test:watch": "NODE_ENV=test node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "NODE_ENV=test node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js --coverage"
-  },
-  "files": [
-    "build"
-  ],
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.11.4",
-    "gray-matter": "^4.0.3",
-    "minisearch": "^7.1.2",
-    "zod": "^3.24.4"
+    "test": "NODE_ENV=test NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest",
+    "test:watch": "NODE_ENV=test NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --watch",
+    "test:coverage": "NODE_ENV=test NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --coverage",
+    "test:mcp": "NODE_ENV=test NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --selectProjects mcp-server",
+    "test:web": "NODE_ENV=test NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --selectProjects web-server"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
-    "@types/node": "^22.15.18",
+    "@tsconfig/recommended": "^1.0.8",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.15.18",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "husky": "^9.1.7",
