@@ -1,12 +1,17 @@
 import fs from "fs/promises";
 import path from "path";
+import os from "os";
+import matter from "gray-matter";
 
-export const NOTES_DIR = path.join("/Users/bennyhobart/Workspace/notetaker-mcp/notes");
+export const NOTES_DIR = path.join(os.homedir(), ".notetaker-mcp", "notes");
+
+// Reserved system fields that users cannot override
+const RESERVED_FIELDS = ["title", "content", "createdAt", "updatedAt"];
 
 // Note type definition
 export interface Note {
   title: string;
-  content: string;
+  content: string; // Raw file content including frontmatter
 }
 
 // Ensure notes directory exists
@@ -22,15 +27,15 @@ export async function ensureNotesDir(): Promise<void> {
 export async function getAllNotes(): Promise<Note[]> {
   await ensureNotesDir();
   const files = await fs.readdir(NOTES_DIR);
-  const noteFiles = files;
+  const noteFiles = files.filter((f) => f.endsWith(".md"));
 
   const notes: Note[] = [];
   for (const file of noteFiles) {
-    const content = await fs.readFile(path.join(NOTES_DIR, file), "utf-8");
+    const fileContent = await fs.readFile(path.join(NOTES_DIR, file), "utf-8");
 
     notes.push({
       title: file.replace(/\.md$/, ""),
-      content,
+      content: fileContent, // Return raw file content including frontmatter
     });
   }
   return notes;
@@ -61,14 +66,20 @@ export async function searchNotes(query: string): Promise<Note[]> {
   });
 }
 
+// Sanitize note title to prevent path traversal
+function sanitizeTitle(title: string): string {
+  return title.replace(/[^a-zA-Z0-9\s\-_]/g, "").trim();
+}
+
 export async function getNote(noteTitle: string): Promise<Note | null> {
   await ensureNotesDir();
-  const notePath = path.join(NOTES_DIR, `${noteTitle}.md`);
+  const sanitizedTitle = sanitizeTitle(noteTitle);
+  const notePath = path.join(NOTES_DIR, `${sanitizedTitle}.md`);
   try {
-    const content = await fs.readFile(notePath, "utf-8");
+    const fileContent = await fs.readFile(notePath, "utf-8");
     return {
       title: noteTitle,
-      content,
+      content: fileContent, // Return raw file content including frontmatter
     };
   } catch (e) {
     return null;
@@ -77,13 +88,37 @@ export async function getNote(noteTitle: string): Promise<Note | null> {
 
 export async function saveNote(note: Note): Promise<void> {
   await ensureNotesDir();
-  const notePath = path.join(NOTES_DIR, `${note.title}.md`);
-  await fs.writeFile(notePath, note.content, "utf-8");
+  const sanitizedTitle = sanitizeTitle(note.title);
+  const notePath = path.join(NOTES_DIR, `${sanitizedTitle}.md`);
+
+  // Parse the incoming content to extract frontmatter and content
+  const { data: frontmatter, content } = matter(note.content);
+
+  // Filter out reserved fields from user metadata
+  const userMetadata = Object.fromEntries(
+    Object.entries(frontmatter).filter(([key]) => !RESERVED_FIELDS.includes(key))
+  );
+
+  // Add/update system metadata
+  const now = new Date().toISOString();
+  const existingNote = await getNote(note.title);
+  const existingFrontmatter = existingNote ? matter(existingNote.content).data : {};
+
+  const fullMetadata = {
+    ...userMetadata,
+    createdAt: existingFrontmatter.createdAt || now,
+    updatedAt: now,
+  };
+
+  // Generate file content with enhanced frontmatter
+  const fileContent = matter.stringify(content, fullMetadata);
+  await fs.writeFile(notePath, fileContent, "utf-8");
 }
 
 export async function deleteNote(noteTitle: string): Promise<boolean> {
   await ensureNotesDir();
-  const notePath = path.join(NOTES_DIR, `${noteTitle}.md`);
+  const sanitizedTitle = sanitizeTitle(noteTitle);
+  const notePath = path.join(NOTES_DIR, `${sanitizedTitle}.md`);
 
   try {
     await fs.access(notePath);

@@ -6,7 +6,10 @@ import {
   saveNote,
   searchNotes,
   Note,
+  NOTES_DIR,
 } from "../noteService.js";
+import fs from "fs/promises";
+import matter from "gray-matter";
 
 describe("Note Service", () => {
   const testNote: Note = {
@@ -25,13 +28,35 @@ describe("Note Service", () => {
   it("should create a note", async () => {
     await saveNote(testNote);
     const notes = await getAllNotes();
-    expect(notes).toContainEqual(testNote);
+
+    // Find our test note
+    const createdNote = notes.find((n) => n.title === testNote.title);
+    expect(createdNote).toBeDefined();
+
+    // Parse content to check the markdown part
+    const { content } = matter(createdNote!.content);
+    expect(content.trim()).toBe(testNote.content);
+
+    // Verify frontmatter contains system fields
+    const { data } = matter(createdNote!.content);
+    expect(data.createdAt).toBeDefined();
+    expect(data.updatedAt).toBeDefined();
   });
 
   it("should get a note by ID", async () => {
     await saveNote(testNote);
     const note = await getNote(testNote.title);
-    expect(note).toEqual(testNote);
+    expect(note).toBeDefined();
+    expect(note!.title).toBe(testNote.title);
+
+    // Parse content to check the markdown part
+    const { content } = matter(note!.content);
+    expect(content.trim()).toBe(testNote.content);
+
+    // Verify frontmatter contains system fields
+    const { data } = matter(note!.content);
+    expect(data.createdAt).toBeDefined();
+    expect(data.updatedAt).toBeDefined();
   });
 
   it("should return null for a non-existent note", async () => {
@@ -44,7 +69,18 @@ describe("Note Service", () => {
     const updatedNote = { ...testNote, content: "Updated content" };
     await saveNote(updatedNote);
     const fetchedNote = await getNote(testNote.title);
-    expect(fetchedNote).toEqual(updatedNote);
+
+    expect(fetchedNote).toBeDefined();
+    expect(fetchedNote!.title).toBe(updatedNote.title);
+
+    // Parse content to check the markdown part
+    const { content } = matter(fetchedNote!.content);
+    expect(content.trim()).toBe("Updated content");
+
+    // Verify timestamps are preserved/updated
+    const { data } = matter(fetchedNote!.content);
+    expect(data.createdAt).toBeDefined();
+    expect(data.updatedAt).toBeDefined();
   });
 
   it("should delete a note", async () => {
@@ -134,6 +170,59 @@ describe("Note Service", () => {
       expect(
         testNotes.every((testNote) => !results.some((result) => result.title === testNote.title))
       ).toBe(true);
+    });
+  });
+
+  describe("security", () => {
+    it("should sanitize dangerous paths and keep files in notes directory", async () => {
+      const dangerousNote: Note = {
+        title: "../../../etc/passwd",
+        content: "This should stay in notes dir",
+      };
+
+      await saveNote(dangerousNote);
+
+      // Verify the file was created in the notes directory with sanitized name
+      const files = await fs.readdir(NOTES_DIR);
+      expect(files).toContain("etcpasswd.md");
+      expect(files).not.toContain("../../../etc/passwd.md");
+
+      // Verify we can retrieve it with the original dangerous title
+      const retrievedNote = await getNote("../../../etc/passwd");
+      expect(retrievedNote).toBeDefined();
+      expect(retrievedNote!.title).toBe(dangerousNote.title);
+
+      // Parse content to check the markdown part
+      const { content } = matter(retrievedNote!.content);
+      expect(content.trim()).toBe(dangerousNote.content);
+
+      // Clean up
+      await deleteNote("../../../etc/passwd");
+    });
+
+    it("should sanitize special characters in filenames", async () => {
+      const specialCharNote: Note = {
+        title: 'test<>:|?*"/\\note',
+        content: "Content with special chars in title",
+      };
+
+      await saveNote(specialCharNote);
+
+      // Check that only safe filename was created
+      const files = await fs.readdir(NOTES_DIR);
+      expect(files).toContain("testnote.md");
+
+      // Verify we can still retrieve with original title
+      const retrievedNote = await getNote('test<>:|?*"/\\note');
+      expect(retrievedNote).toBeDefined();
+      expect(retrievedNote!.title).toBe(specialCharNote.title);
+
+      // Parse content to check the markdown part
+      const { content } = matter(retrievedNote!.content);
+      expect(content.trim()).toBe(specialCharNote.content);
+
+      // Clean up
+      await deleteNote('test<>:|?*"/\\note');
     });
   });
 });

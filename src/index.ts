@@ -132,19 +132,19 @@ function getContentSnippet(content: string, query: string, maxLength: number = 1
   return snippet;
 }
 
-// Read a note by ID
+// Read a note by title
 server.tool(
   "read-note",
   "Read a note",
   {
-    noteId: z.string(),
+    title: z.string(),
   },
-  async ({ noteId }) => {
-    const note = await getNote(noteId);
+  async ({ title }) => {
+    const note = await getNote(title);
 
     if (!note) {
       return {
-        content: [{ type: "text", text: `Note with ID "${noteId}" not found.` }],
+        content: [{ type: "text", text: `Note with title "${title}" not found.` }],
       };
     }
 
@@ -202,14 +202,8 @@ server.tool(
       };
     }
 
-    // Update only the provided fields
-    if (title !== undefined) {
-      note.title = title;
-    }
-
-    if (content !== undefined) {
-      note.content = content;
-    }
+    // Update the note content
+    note.content = content;
 
     await saveNote(note);
 
