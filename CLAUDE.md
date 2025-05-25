@@ -1,149 +1,102 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working with this repository.
 
 ## Project Overview
 
-This is a **monorepo workspace** containing:
-
-1. **MCP Server** - Model Context Protocol server for note-taking and management
-2. **Web Server** - HTTP bridge and clean React interface
-
-Both packages work together to provide a streamlined note management platform with AI assistant integration and web-based interface.
+Monorepo workspace with two packages:
+- `packages/mcp-server/` - MCP server for note management
+- `packages/web-server/` - HTTP API and React UI
 
 ## Architecture
 
-### Workspace Structure
+### MCP Server (`packages/mcp-server/src/`)
 
-This project uses **npm workspaces** with two packages:
+- **`index.ts`**: MCP tools: list-notes, search-notes, read-note, create-note, update-note, delete-note
+- **`noteService.ts`**: File operations, YAML frontmatter, auto timestamps, stores in `~/.notetaker-mcp/notes/`
+- **`searchService.ts`**: Full-text search with MiniSearch, fuzzy matching, real-time index
+- **`noteLinkService.ts`**: Parses `[[Note Title]]` syntax, manages link relationships
 
-- **`packages/mcp-server/`** - Core MCP server functionality
-- **`packages/web-server/`** - HTTP API and React web interface
+### Web Server (`packages/web-server/src/`)
 
-### Core Components
+- **`server.ts`**: Express server, REST API endpoints, serves React app
+- **`client/`**: React 19 + TypeScript + TailwindCSS
+  - CodeMirror 6 editor with syntax highlighting
+  - Wiki-style `[[Note Title]]` linking with click navigation
+  - LinksPanel for bidirectional relationships
+  - Draft mode and inline title editing
+  - Server-side search with 300ms throttling
 
-#### MCP Server (`packages/mcp-server/src/`)
-
-- **`index.ts`**: MCP server implementation with tool definitions
-
-  - Registers 6 MCP tools: `list-notes`, `search-notes`, `read-note`, `create-note`, `update-note`, `delete-note`
-  - Uses Zod for input validation
-  - Returns structured responses with content arrays
-
-- **`noteService.ts`**: File system operations and note management
-
-  - Handles YAML frontmatter parsing with `gray-matter`
-  - Manages system metadata (createdAt, updatedAt) automatically
-  - Sanitizes note titles to prevent path traversal attacks
-  - Stores notes in `~/.notetaker-mcp/notes/` as `.md` files
-
-- **`searchService.ts`**: Advanced search functionality with MiniSearch
-  - Full-text search with fuzzy matching and relevance ranking
-  - Real-time index updates when notes are modified
-  - Supports prefix search and typo tolerance
-
-#### Web Server (`packages/web-server/src/`)
-
-- **`server.ts`**: Express.js HTTP server with React SPA support
-
-  - Exposes all MCP functionality as REST API endpoints
-  - Serves built React application for note management
-  - Provides environment-based configuration and robust static file serving
-  - Imports and uses MCP server functions via workspace references
-
-- **`client/`**: React frontend application
-  - Built with React 19, TypeScript, and TailwindCSS
-  - Clean note management interface (NotesList, NotesView)
-  - Uses Vite for development and production builds
-
-### Data Model
-
-Notes have a simple interface:
-
-```typescript
-interface Note {
-  title: string;
-  content: string; // Raw file content including YAML frontmatter
-}
-```
-
-Files are stored with this format:
+### Data Format
 
 ```markdown
 ---
 createdAt: 2024-01-15T10:30:00Z
 updatedAt: 2024-01-16T14:20:00Z
-priority: high
-category: work
+custom: fields
 ---
 
 # Note Title
 
-Markdown content here...
+Content with [[Note Links]]...
 ```
 
-### Key Design Decisions
+### Key Points
 
-- **Raw content exposure**: MCP interface exposes complete file content including frontmatter
-- **System metadata management**: `createdAt`/`updatedAt` automatically managed on write operations
-- **Reserved field protection**: Users cannot override system fields (`title`, `content`, `createdAt`, `updatedAt`)
-- **Title-based identification**: Note titles serve as unique identifiers (sanitized for filesystem safety)
-- **User directory storage**: Notes stored in OS-appropriate user directory for portability
+- Note titles are unique identifiers
+- System manages createdAt/updatedAt timestamps
+- Path.resolve() validation prevents directory traversal
+- LinkTracker maintains bidirectional relationships in memory
+- MCP exposes raw content including frontmatter
 
-## Development Commands
-
-### Primary Workflow Commands
-
-- `npm run dev` - Start full development environment (MCP server + API + React UI with hot reloading)
-- `npm run build` - Build all packages for production
-- `npm start` - Start production server (serves built React app + API)
-
-### Testing Commands
-
-- `npm test` - Run all tests across both packages
-- `npm run test:mcp` - Run only MCP server tests
-- `npm run test:web` - Run only web server tests
-- `npm run test:coverage` - Generate coverage report for all packages
-
-### Code Quality Commands
-
-- `npm run lint` - Check code style with ESLint across all packages
-- `npm run lint:fix` - Auto-fix ESLint issues
-- `npm run format` - Format code with Prettier
-- `npm run check` - Run both lint and format checks
-- `npm run fix` - Auto-fix both lint and format issues
-
-### Individual Package Development
+## Commands
 
 ```bash
-# Build specific package
-npm run build -w packages/mcp-server
-npm run build -w packages/web-server
+# Development
+npm run dev          # Full dev environment
+npm run build        # Build all packages
+npm start            # Production server
 
-# Test specific package
-npm run test -w packages/mcp-server
-npm run test -w packages/web-server
+# Testing
+npm test             # All tests
+npm run test:mcp     # MCP tests only
+npm run test:web     # Web tests only
+npm run test:coverage # Coverage report
 
-# Development mode for specific package
-npm run dev -w packages/mcp-server      # MCP server only
-npm run dev -w packages/web-server      # API server only
-npm run dev:client -w packages/web-server # React dev server only
+# Code quality
+npm run lint         # Check linting
+npm run lint:fix     # Fix linting
+npm run format       # Format code
+npm run check        # Lint + format check
+npm run fix          # Fix all issues
 
-# Run specific test pattern
-npm test -- --testNamePattern="should create a note"
+# Package-specific
+npm run dev -w packages/mcp-server
+npm run dev -w packages/web-server
+npm run dev:client -w packages/web-server
 ```
 
-## Important Implementation Notes
+## Implementation Notes
 
-- **File Operations**: Tests use real filesystem operations (not mocked) - ensure proper cleanup in test teardown
-- **Frontmatter Processing**: Parsing happens on both read and write operations
-- **Search Functionality**: Searches both title and content fields with MiniSearch
-- **Security**: Path traversal protection via title sanitization removes dangerous characters
-- **Module System**: ES modules configuration requires `--experimental-vm-modules` flag for Jest
-- **Frontend Build**: React app built with Vite for fast development and production builds
-- **Environment Configuration**: Simple validation without external libraries, supports both development and production modes
-- **Static File Serving**: Robust path resolution that works in different deployment scenarios
+- Tests use real filesystem operations - cleanup in teardown
+- Jest requires `--experimental-vm-modules` flag for ES modules
+- Vite for React build
+- CodeMirror 6 with custom note link extension
+- LinkTracker auto-updates on note changes
+- Search throttled to 300ms
+- Pre-commit hooks run tests
 
-## Development Best Practices
+## API Endpoints
 
-- Never commit code with the claude attribution
+```
+GET    /api/notes              # List all
+GET    /api/notes/search?q=    # Search
+GET    /api/notes/:title       # Read note
+POST   /api/notes              # Create
+PUT    /api/notes/:title       # Update
+DELETE /api/notes/:title       # Delete
+
+GET    /api/notes/:title/links     # All links
+GET    /api/notes/:title/outgoing  # Outgoing
+GET    /api/notes/:title/backlinks # Backlinks
+```

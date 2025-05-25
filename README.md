@@ -15,11 +15,16 @@ This project is organized as a **monorepo workspace** with two main packages:
 - 📝 **Full CRUD operations** for markdown notes with YAML frontmatter  
 - 🔍 **Advanced search** with fuzzy matching and relevance ranking
 - 📋 **Metadata management** with automatic timestamps
-- 🔒 **Security** with path sanitization and validation
+- 🔗 **Wiki-style linking** with `[[Note Title]]` syntax
+- 🔒 **Security** with path validation and traversal protection
 
 ### Web Interface  
 - 🌐 **HTTP API** exposing all MCP functionality as REST endpoints
 - ⚛️ **React frontend** built with TypeScript and TailwindCSS
+- ✏️ **CodeMirror 6 editor** with syntax highlighting and search
+- 🔗 **Interactive note links** with bidirectional relationship tracking
+- 📝 **Draft mode** with inline title editing
+- 🔍 **Server-side search** with throttled UI for performance
 - 📱 **Clean, responsive interface** focused on note management
 - 🔄 **Hot module reloading** for development
 
@@ -137,7 +142,11 @@ POST   /api/notes              - Create note
 PUT    /api/notes/:title       - Update note
 DELETE /api/notes/:title       - Delete note
 
-GET    /api/health                      - Health check
+GET    /api/notes/:title/links     - Get all links for a note
+GET    /api/notes/:title/outgoing  - Get outgoing links
+GET    /api/notes/:title/backlinks - Get backlinks (notes that link to this one)
+
+GET    /api/health              - Health check
 ```
 
 ### Response Format
@@ -161,15 +170,15 @@ Notes are stored as Markdown files with YAML frontmatter:
 
 ```markdown
 ---
-title: "My Note"
-createdAt: "2024-01-15 10:30"
-updatedAt: "2024-01-16 14:20"
+createdAt: 2024-01-15T10:30:00Z
+updatedAt: 2024-01-16T14:20:00Z
 priority: high
 category: work
 ---
+
 # My Note Title
 
-Markdown content goes here...
+Markdown content with [[Linked Notes]] support...
 ```
 
 ## Workspace Structure
@@ -195,13 +204,22 @@ notetaker-mcp/
 └── tsconfig.build.json      # Build configuration
 ```
 
+## Note Linking
+
+The platform supports wiki-style note linking:
+
+- Use `[[Note Title]]` to link to other notes
+- Use `[[Note Title|Display Text]]` for custom link text
+- Links are clickable in the editor and navigate to the target note
+- LinksPanel shows bidirectional relationships (outgoing links and backlinks)
+
 ## Git Hooks
 
 The project uses Husky for Git hooks:
 
-- **pre-commit**: Runs lint-staged to check and fix issues before committing
+- **pre-commit**: Runs lint-staged to check and fix issues, plus executes tests
 
-This ensures all committed code follows the project's standards.
+This ensures all committed code follows the project's standards and passes tests.
 
 ## Technology Stack
 
@@ -211,7 +229,9 @@ This ensures all committed code follows the project's standards.
 - **Express.js** - Web server framework
 - **Vite** - Build tool and dev server
 - **TailwindCSS** - Utility-first CSS framework
+- **CodeMirror 6** - Advanced code editor
 - **Jest** - Testing framework
 - **ESLint + Prettier** - Code quality tools
 - **MiniSearch** - Full-text search engine
 - **Gray-Matter** - YAML frontmatter parsing
+- **Lodash** - Utility functions (throttling)
