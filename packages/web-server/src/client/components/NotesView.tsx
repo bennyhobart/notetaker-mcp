@@ -98,6 +98,14 @@ const NotesView: React.FC = (): JSX.Element => {
       const result = await response.json();
       if (result.success) {
         setSelectedNote(result.data);
+      } else if (response.status === 404) {
+        // Note doesn't exist - create a draft with the requested title
+        const draftNote: Note = {
+          title: title,
+          content: `# ${title}\n\nStart writing your note here...`,
+          isDraft: true,
+        };
+        setSelectedNote(draftNote);
       }
     } catch (error) {
       console.error("Error loading note content:", error);
