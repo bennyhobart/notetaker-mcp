@@ -23,7 +23,6 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           vendor: ["react", "react-dom"],
-          d3: ["d3"],
         },
       },
     },
@@ -61,7 +60,7 @@ export default defineConfig(({ mode }) => ({
   },
   // Dependency optimization
   optimizeDeps: {
-    include: ["react", "react-dom", "d3"],
+    include: ["react", "react-dom"],
     exclude: [],
   },
   // Better error overlay

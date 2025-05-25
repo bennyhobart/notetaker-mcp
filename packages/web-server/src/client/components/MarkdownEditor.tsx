@@ -1,54 +1,119 @@
 import React, { useState, useEffect, useRef } from "react";
-import { obsidianExtensions, EditorState, EditorView } from "../utils/codemirrorConfig";
 import { Note } from "../types";
+import {
+  EditorView,
+  keymap,
+  highlightActiveLine,
+  lineNumbers,
+  drawSelection,
+} from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import { markdown } from "@codemirror/lang-markdown";
+import { languages } from "@codemirror/language-data";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import {
+  autocompletion,
+  completionKeymap,
+  closeBrackets,
+  closeBracketsKeymap,
+} from "@codemirror/autocomplete";
+import { foldKeymap } from "@codemirror/language";
+import { lintKeymap } from "@codemirror/lint";
+import {
+  syntaxHighlighting,
+  defaultHighlightStyle,
+  bracketMatching,
+  indentOnInput,
+} from "@codemirror/language";
 
 interface MarkdownEditorProps {
-  note: Note | null;
+  note: Note;
   onSave: (title: string, content: string) => Promise<void>;
   onClose: () => void;
 }
 
 const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }) => {
-  const [content, setContent] = useState("");
-  const [title, setTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
-
-  useEffect(() => {
-    if (note) {
-      setTitle(note.title);
-      setContent(note.content);
-      setHasChanges(false);
-    }
-  }, [note]);
+  const [content, setContent] = useState(note.content);
+  const hasChanges = content !== note.content;
 
   // Initialize CodeMirror
   useEffect(() => {
     if (editorRef.current && !editorViewRef.current) {
-      try {
-        const state = EditorState.create({
-          doc: content,
-          extensions: [
-            ...obsidianExtensions,
-            EditorView.updateListener.of((update) => {
-              if (update.docChanged) {
-                const newContent = update.state.doc.toString();
-                setContent(newContent);
-                setHasChanges(true);
-              }
-            }),
-          ],
-        });
+      const extensions = [
+        // Basic setup
+        drawSelection(),
+        EditorState.allowMultipleSelections.of(true),
+        indentOnInput(),
+        closeBrackets(),
+        autocompletion(),
 
-        editorViewRef.current = new EditorView({
-          state,
-          parent: editorRef.current,
-        });
-      } catch (error) {
-        console.error("Failed to initialize CodeMirror:", error);
-      }
+        // History and search
+        history(),
+
+        // Syntax highlighting
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+
+        // Markdown language support
+        markdown({
+          codeLanguages: languages,
+        }),
+
+        // Keymaps
+        keymap.of([
+          ...closeBracketsKeymap,
+          ...defaultKeymap,
+          ...searchKeymap,
+          ...historyKeymap,
+          ...foldKeymap,
+          ...completionKeymap,
+          ...lintKeymap,
+        ]),
+
+        // Custom styling
+        EditorView.theme({
+          "&": {
+            height: "100%",
+            fontSize: "14px",
+            fontFamily:
+              '"SF Mono", Monaco, "Inconsolata", "Roboto Mono", Consolas, "Courier New", monospace',
+          },
+          ".cm-content": {
+            padding: "20px",
+            minHeight: "400px",
+            lineHeight: "1.6",
+          },
+          ".cm-focused": {
+            outline: "none",
+          },
+          ".cm-editor": {
+            height: "100%",
+          },
+          ".cm-scroller": {
+            fontSize: "14px",
+          },
+          ".cm-line": {
+            padding: "0 0 0 4px",
+          },
+        }),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            const newContent = update.state.doc.toString();
+            setContent(newContent);
+          }
+        }),
+      ];
+
+      editorViewRef.current = new EditorView({
+        state: EditorState.create({
+          doc: note.content,
+          extensions,
+        }),
+        parent: editorRef.current,
+      });
     }
 
     return () => {
@@ -59,26 +124,12 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }
     };
   }, [note]);
 
-  // Update CodeMirror content when note changes
-  useEffect(() => {
-    if (editorViewRef.current && content !== editorViewRef.current.state.doc.toString()) {
-      editorViewRef.current.dispatch({
-        changes: {
-          from: 0,
-          to: editorViewRef.current.state.doc.length,
-          insert: content,
-        },
-      });
-    }
-  }, [content]);
-
   const handleSave = async () => {
     if (!note || !hasChanges) return;
 
     setIsSaving(true);
     try {
-      await onSave(title, content);
-      setHasChanges(false);
+      await onSave(note.title, content);
     } catch (error) {
       console.error("Error saving note:", error);
     } finally {
@@ -112,7 +163,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }
           >
             ←
           </button>
-          <h1 className="text-xl font-semibold text-gray-800">{title}</h1>
+          <h1 className="text-xl font-semibold text-gray-800">{note.title}</h1>
           {hasChanges && (
             <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
               Unsaved changes
@@ -123,11 +174,18 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              setContent(note.content);
-              setHasChanges(false);
+              if (editorViewRef.current) {
+                editorViewRef.current.dispatch({
+                  changes: {
+                    from: 0,
+                    to: editorViewRef.current.state.doc.length,
+                    insert: note.content,
+                  },
+                });
+              }
             }}
             className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-            disabled={isSaving}
+            disabled={isSaving || !hasChanges}
           >
             Reset
           </button>
@@ -142,8 +200,10 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }
       </div>
 
       {/* Editor */}
-      <div className="flex-1 relative">
-        <div ref={editorRef} />
+      <div className="flex-1 flex justify-center bg-gray-50">
+        <div className="w-full max-w-4xl bg-white shadow-sm min-h-0 flex flex-col">
+          <div ref={editorRef} className="flex-1 min-h-0" />
+        </div>
       </div>
     </div>
   );
