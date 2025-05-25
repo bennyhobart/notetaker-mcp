@@ -3,6 +3,7 @@ import path from "path";
 import os from "os";
 import matter from "gray-matter";
 import { searchService } from "./searchService.js";
+import { extractOutgoingLinks, LinkRelationship } from "./noteLinkService.js";
 
 export const NOTES_DIR =
   process.env.NODE_ENV === "test"
@@ -18,6 +19,80 @@ export interface Note {
   content: string; // Raw file content including frontmatter
 }
 
+// Enhanced Note with link information
+export interface NoteWithLinks extends Note {
+  outgoingLinks: string[];
+  backlinks: string[];
+}
+
+// In-memory link tracking
+class LinkTracker {
+  private relationships: Map<string, Set<string>> = new Map(); // fromNote -> Set<toNote>
+  private backlinks: Map<string, Set<string>> = new Map(); // toNote -> Set<fromNote>
+
+  updateNoteLinks(noteTitle: string, content: string): void {
+    // Remove existing relationships for this note
+    this.removeNoteLinks(noteTitle);
+
+    // Extract new outgoing links
+    const outgoingLinks = extractOutgoingLinks(noteTitle, content);
+
+    if (outgoingLinks.length > 0) {
+      const targets = new Set(outgoingLinks.map((link) => link.toNote));
+      this.relationships.set(noteTitle, targets);
+
+      // Update backlinks
+      for (const target of targets) {
+        if (!this.backlinks.has(target)) {
+          this.backlinks.set(target, new Set());
+        }
+        this.backlinks.get(target)!.add(noteTitle);
+      }
+    }
+  }
+
+  removeNoteLinks(noteTitle: string): void {
+    // Remove outgoing links
+    const oldTargets = this.relationships.get(noteTitle);
+    if (oldTargets) {
+      // Remove backlinks pointing to the old targets
+      for (const target of oldTargets) {
+        const targetBacklinks = this.backlinks.get(target);
+        if (targetBacklinks) {
+          targetBacklinks.delete(noteTitle);
+          if (targetBacklinks.size === 0) {
+            this.backlinks.delete(target);
+          }
+        }
+      }
+      this.relationships.delete(noteTitle);
+    }
+
+    // Remove any backlinks pointing to this note
+    this.backlinks.delete(noteTitle);
+  }
+
+  getOutgoingLinks(noteTitle: string): string[] {
+    return Array.from(this.relationships.get(noteTitle) || []);
+  }
+
+  getBacklinks(noteTitle: string): string[] {
+    return Array.from(this.backlinks.get(noteTitle) || []);
+  }
+
+  getAllRelationships(): LinkRelationship[] {
+    const relationships: LinkRelationship[] = [];
+    for (const [fromNote, targets] of this.relationships) {
+      for (const toNote of targets) {
+        relationships.push({ fromNote, toNote });
+      }
+    }
+    return relationships;
+  }
+}
+
+const linkTracker = new LinkTracker();
+
 // Ensure notes directory exists
 export async function ensureNotesDir(): Promise<void> {
   try {
@@ -27,10 +102,15 @@ export async function ensureNotesDir(): Promise<void> {
   }
 }
 
-// Initialize search index with all notes
+// Initialize search index and link tracking with all notes
 export async function initializeSearch(): Promise<void> {
   const notes = await getAllNotes();
   await searchService.initialize(notes);
+
+  // Initialize link tracking
+  for (const note of notes) {
+    linkTracker.updateNoteLinks(note.title, note.content);
+  }
 }
 
 // Helper functions for note operations
@@ -69,16 +149,24 @@ export async function searchNotes(query: string): Promise<Note[]> {
   return searchService.search(query);
 }
 
-// Sanitize note title to prevent path traversal
-function sanitizeTitle(title: string): string {
-  return title.replace(/[^a-zA-Z0-9\s\-_]/g, "").trim();
+// Validate that the resolved path is within the notes directory
+function validateNotePath(noteTitle: string): string {
+  const notePath = path.join(NOTES_DIR, `${noteTitle}.md`);
+  const resolvedPath = path.resolve(notePath);
+  const resolvedNotesDir = path.resolve(NOTES_DIR);
+
+  if (!resolvedPath.startsWith(resolvedNotesDir)) {
+    throw new Error("Invalid note path: path traversal detected");
+  }
+
+  return notePath;
 }
 
 export async function getNote(noteTitle: string): Promise<Note | null> {
   await ensureNotesDir();
-  const sanitizedTitle = sanitizeTitle(noteTitle);
-  const notePath = path.join(NOTES_DIR, `${sanitizedTitle}.md`);
+
   try {
+    const notePath = validateNotePath(noteTitle);
     const fileContent = await fs.readFile(notePath, "utf-8");
     return {
       title: noteTitle,
@@ -91,8 +179,7 @@ export async function getNote(noteTitle: string): Promise<Note | null> {
 
 export async function saveNote(note: Note): Promise<void> {
   await ensureNotesDir();
-  const sanitizedTitle = sanitizeTitle(note.title);
-  const notePath = path.join(NOTES_DIR, `${sanitizedTitle}.md`);
+  const notePath = validateNotePath(note.title);
 
   // Parse the incoming content to extract frontmatter and content
   const { data: frontmatter, content } = matter(note.content);
@@ -118,7 +205,7 @@ export async function saveNote(note: Note): Promise<void> {
   const existingFrontmatter = existingNote ? matter(existingNote.content).data : {};
 
   const fullMetadata = {
-    title: sanitizedTitle,
+    title: note.title,
     createdAt: existingFrontmatter.createdAt || now,
     updatedAt: now,
     ...userMetadata,
@@ -134,22 +221,53 @@ export async function saveNote(note: Note): Promise<void> {
     content: fileContent,
   };
   searchService.updateNote(updatedNote);
+
+  // Update link tracking
+  linkTracker.updateNoteLinks(note.title, fileContent);
 }
 
 export async function deleteNote(noteTitle: string): Promise<boolean> {
   await ensureNotesDir();
-  const sanitizedTitle = sanitizeTitle(noteTitle);
-  const notePath = path.join(NOTES_DIR, `${sanitizedTitle}.md`);
 
   try {
+    const notePath = validateNotePath(noteTitle);
     await fs.access(notePath);
     await fs.unlink(notePath);
 
     // Remove from search index
     searchService.removeNote(noteTitle);
 
+    // Remove from link tracking
+    linkTracker.removeNoteLinks(noteTitle);
+
     return true;
   } catch (e) {
     return false;
   }
+}
+
+// Link relationship functions
+export function getOutgoingLinks(noteTitle: string): string[] {
+  return linkTracker.getOutgoingLinks(noteTitle);
+}
+
+export function getBacklinks(noteTitle: string): string[] {
+  return linkTracker.getBacklinks(noteTitle);
+}
+
+export function getAllLinkRelationships(): LinkRelationship[] {
+  return linkTracker.getAllRelationships();
+}
+
+export async function getNoteWithLinks(noteTitle: string): Promise<NoteWithLinks | null> {
+  const note = await getNote(noteTitle);
+  if (!note) {
+    return null;
+  }
+
+  return {
+    ...note,
+    outgoingLinks: getOutgoingLinks(noteTitle),
+    backlinks: getBacklinks(noteTitle),
+  };
 }

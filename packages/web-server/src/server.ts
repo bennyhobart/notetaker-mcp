@@ -10,6 +10,9 @@ import {
   searchNotes,
   ensureNotesDir,
   initializeSearch,
+  getNoteWithLinks,
+  getOutgoingLinks,
+  getBacklinks,
 } from "@notetaker/mcp-server/noteService";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -138,6 +141,42 @@ app.delete("/api/notes/:title", async (req, res) => {
   } catch (error) {
     console.error("Error deleting note:", error);
     res.status(500).json({ success: false, error: "Failed to delete note" });
+  }
+});
+
+// Get a note with its link relationships
+app.get("/api/notes/:title/links", async (req, res) => {
+  try {
+    const noteWithLinks = await getNoteWithLinks(req.params.title);
+    if (!noteWithLinks) {
+      return res.status(404).json({ success: false, error: "Note not found" });
+    }
+    res.json({ success: true, data: noteWithLinks });
+  } catch (error) {
+    console.error("Error getting note with links:", error);
+    res.status(500).json({ success: false, error: "Failed to get note with links" });
+  }
+});
+
+// Get outgoing links for a note
+app.get("/api/notes/:title/outgoing", async (req, res) => {
+  try {
+    const outgoingLinks = getOutgoingLinks(req.params.title);
+    res.json({ success: true, data: outgoingLinks });
+  } catch (error) {
+    console.error("Error getting outgoing links:", error);
+    res.status(500).json({ success: false, error: "Failed to get outgoing links" });
+  }
+});
+
+// Get backlinks for a note
+app.get("/api/notes/:title/backlinks", async (req, res) => {
+  try {
+    const backlinks = getBacklinks(req.params.title);
+    res.json({ success: true, data: backlinks });
+  } catch (error) {
+    console.error("Error getting backlinks:", error);
+    res.status(500).json({ success: false, error: "Failed to get backlinks" });
   }
 });
 

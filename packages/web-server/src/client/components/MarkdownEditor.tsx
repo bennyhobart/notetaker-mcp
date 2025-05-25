@@ -15,14 +15,21 @@ import {
 import { foldKeymap } from "@codemirror/language";
 import { lintKeymap } from "@codemirror/lint";
 import { syntaxHighlighting, defaultHighlightStyle, indentOnInput } from "@codemirror/language";
+import { noteLinkExtension } from "./NoteLinkExtension";
 
 interface MarkdownEditorProps {
   note: Note;
   onSave: (title: string, content: string) => Promise<void>;
   onClose: () => void;
+  onNavigateToNote?: (noteTitle: string) => void;
 }
 
-const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }): JSX.Element => {
+const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
+  note,
+  onSave,
+  onClose,
+  onNavigateToNote,
+}): JSX.Element => {
   const [isSaving, setIsSaving] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
@@ -50,6 +57,9 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }
         markdown({
           codeLanguages: languages,
         }),
+
+        // NoteLink extension
+        noteLinkExtension,
 
         // Keymaps
         keymap.of([
@@ -103,6 +113,20 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }
         }),
         parent: editorRef.current,
       });
+
+      // Add event listener for note link clicks
+      const handleNoteLinkClick = (event: Event): void => {
+        const customEvent = event as CustomEvent;
+        if (customEvent.detail?.target && onNavigateToNote) {
+          onNavigateToNote(customEvent.detail.target);
+        }
+      };
+
+      editorRef.current?.addEventListener("notelink-click", handleNoteLinkClick);
+
+      return () => {
+        editorRef.current?.removeEventListener("notelink-click", handleNoteLinkClick);
+      };
     }
 
     return () => {
@@ -111,7 +135,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }
         editorViewRef.current = null;
       }
     };
-  }, [note]);
+  }, [note, onNavigateToNote]);
 
   const handleSave = async (): Promise<void> => {
     if (!note || !hasChanges) return;

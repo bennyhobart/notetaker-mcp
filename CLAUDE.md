@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 This is a **monorepo workspace** containing:
+
 1. **MCP Server** - Model Context Protocol server for note-taking and management
 2. **Web Server** - HTTP bridge and clean React interface
 
@@ -24,11 +25,13 @@ This project uses **npm workspaces** with two packages:
 #### MCP Server (`packages/mcp-server/src/`)
 
 - **`index.ts`**: MCP server implementation with tool definitions
+
   - Registers 6 MCP tools: `list-notes`, `search-notes`, `read-note`, `create-note`, `update-note`, `delete-note`
   - Uses Zod for input validation
   - Returns structured responses with content arrays
 
 - **`noteService.ts`**: File system operations and note management
+
   - Handles YAML frontmatter parsing with `gray-matter`
   - Manages system metadata (createdAt, updatedAt) automatically
   - Sanitizes note titles to prevent path traversal attacks
@@ -39,10 +42,10 @@ This project uses **npm workspaces** with two packages:
   - Real-time index updates when notes are modified
   - Supports prefix search and typo tolerance
 
-
 #### Web Server (`packages/web-server/src/`)
 
 - **`server.ts`**: Express.js HTTP server with React SPA support
+
   - Exposes all MCP functionality as REST API endpoints
   - Serves built React application for note management
   - Provides environment-based configuration and robust static file serving
@@ -56,6 +59,7 @@ This project uses **npm workspaces** with two packages:
 ### Data Model
 
 Notes have a simple interface:
+
 ```typescript
 interface Note {
   title: string;
@@ -64,6 +68,7 @@ interface Note {
 ```
 
 Files are stored with this format:
+
 ```markdown
 ---
 createdAt: 2024-01-15T10:30:00Z
@@ -71,7 +76,9 @@ updatedAt: 2024-01-16T14:20:00Z
 priority: high
 category: work
 ---
+
 # Note Title
+
 Markdown content here...
 ```
 
@@ -86,24 +93,28 @@ Markdown content here...
 ## Development Commands
 
 ### Primary Workflow Commands
+
 - `npm run dev` - Start full development environment (MCP server + API + React UI with hot reloading)
 - `npm run build` - Build all packages for production
 - `npm start` - Start production server (serves built React app + API)
 
 ### Testing Commands
+
 - `npm test` - Run all tests across both packages
 - `npm run test:mcp` - Run only MCP server tests
-- `npm run test:web` - Run only web server tests  
+- `npm run test:web` - Run only web server tests
 - `npm run test:coverage` - Generate coverage report for all packages
 
 ### Code Quality Commands
+
 - `npm run lint` - Check code style with ESLint across all packages
 - `npm run lint:fix` - Auto-fix ESLint issues
-- `npm run format` - Format code with Prettier  
+- `npm run format` - Format code with Prettier
 - `npm run check` - Run both lint and format checks
 - `npm run fix` - Auto-fix both lint and format issues
 
 ### Individual Package Development
+
 ```bash
 # Build specific package
 npm run build -w packages/mcp-server
@@ -115,7 +126,7 @@ npm run test -w packages/web-server
 
 # Development mode for specific package
 npm run dev -w packages/mcp-server      # MCP server only
-npm run dev -w packages/web-server      # API server only  
+npm run dev -w packages/web-server      # API server only
 npm run dev:client -w packages/web-server # React dev server only
 
 # Run specific test pattern
@@ -136,5 +147,3 @@ npm test -- --testNamePattern="should create a note"
 ## Development Best Practices
 
 - Never commit code with the claude attribution
-- Remember to use puppeteer to validate your changes when updating the ui
-- Remember to use localhost:3001 when checking out your changes, this is the development vite server, localhost:3000 is for "production" build testing

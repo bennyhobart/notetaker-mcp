@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { throttle } from "lodash";
 import { Note, NoteWithPreview } from "../types";
 import MarkdownEditor from "./MarkdownEditor";
+import LinksPanel from "./LinksPanel";
 
 const NotesView: React.FC = (): JSX.Element => {
   const [notes, setNotes] = useState<NoteWithPreview[]>([]);
@@ -217,6 +218,11 @@ Start writing your note here...`;
             ))
           )}
         </div>
+
+        {/* Links Panel */}
+        {selectedNote && (
+          <LinksPanel noteTitle={selectedNote.title} onNavigateToNote={loadNoteContent} />
+        )}
       </div>
 
       {/* Main content */}
@@ -226,6 +232,7 @@ Start writing your note here...`;
           note={selectedNote}
           onSave={saveNote}
           onClose={() => setSelectedNote(null)}
+          onNavigateToNote={loadNoteContent}
         />
       ) : null}
     </div>
