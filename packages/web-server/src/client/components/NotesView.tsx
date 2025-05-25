@@ -104,44 +104,39 @@ const NotesView: React.FC = (): JSX.Element => {
     }
   };
 
-  const createNewNote = async (): Promise<void> => {
-    const title = prompt("Enter note title:");
-    if (!title) return;
-
-    const content = `# ${title}
-
-Start writing your note here...`;
-
-    try {
-      const response = await fetch("/api/notes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ title, content }),
-      });
-      const result = await response.json();
-      if (result.success) {
-        loadNotes();
-        loadNoteContent(title);
-      } else {
-        alert("Failed to create note: " + result.error);
-      }
-    } catch (error) {
-      console.error("Error creating note:", error);
-      alert("Failed to create note: " + (error as Error).message);
-    }
+  const createNewNote = (): void => {
+    const draftNote: Note = {
+      title: "Untitled Note",
+      content: "# Untitled Note\n\nStart writing your note here...",
+      isDraft: true,
+    };
+    setSelectedNote(draftNote);
   };
 
   const saveNote = async (title: string, content: string): Promise<void> => {
     try {
-      const response = await fetch(`/api/notes/${encodeURIComponent(title)}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content }),
-      });
+      let response;
+
+      if (selectedNote?.isDraft) {
+        // Creating a new note
+        response = await fetch("/api/notes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title, content }),
+        });
+      } else {
+        // Updating existing note
+        response = await fetch(`/api/notes/${encodeURIComponent(title)}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content }),
+        });
+      }
+
       const result = await response.json();
       if (result.success) {
         loadNotes();

@@ -1,6 +1,7 @@
 export interface Note {
   title: string;
   content: string;
+  isDraft?: boolean;
 }
 
 export interface NoteWithPreview {

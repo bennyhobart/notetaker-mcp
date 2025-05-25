@@ -34,7 +34,10 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const [content, setContent] = useState(note.content);
-  const hasChanges = content !== note.content;
+  const [title, setTitle] = useState(note.title);
+  const hasChanges = content !== note.content || (note.isDraft && title !== note.title);
+  const isValidTitle = title.trim().length > 0;
+  const canSave = note.isDraft ? isValidTitle : hasChanges && isValidTitle;
 
   // Initialize CodeMirror
   useEffect(() => {
@@ -138,11 +141,11 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   }, [note, onNavigateToNote]);
 
   const handleSave = async (): Promise<void> => {
-    if (!note || !hasChanges) return;
+    if (!canSave) return;
 
     setIsSaving(true);
     try {
-      await onSave(note.title, content);
+      await onSave(title.trim(), content);
     } catch (error) {
       console.error("Error saving note:", error);
     } finally {
@@ -176,8 +179,22 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           >
             ←
           </button>
-          <h1 className="text-xl font-semibold text-gray-800">{note.title}</h1>
-          {hasChanges && (
+          {note.isDraft ? (
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter note title..."
+              className="text-xl font-semibold text-gray-800 bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded"
+              autoFocus
+            />
+          ) : (
+            <h1 className="text-xl font-semibold text-gray-800">{note.title}</h1>
+          )}
+          {note.isDraft && (
+            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Draft</span>
+          )}
+          {hasChanges && !note.isDraft && (
             <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
               Unsaved changes
             </span>
@@ -196,18 +213,19 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                   },
                 });
               }
+              setTitle(note.title);
             }}
             className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-            disabled={isSaving || !hasChanges}
+            disabled={isSaving || !canSave}
           >
             Reset
           </button>
           <button
             onClick={handleSave}
-            disabled={!hasChanges || isSaving}
+            disabled={!canSave || isSaving}
             className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isSaving ? "Saving..." : "Save"}
+            {isSaving ? "Saving..." : note.isDraft ? "Create Note" : "Save"}
           </button>
         </div>
       </div>
