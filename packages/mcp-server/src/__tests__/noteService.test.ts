@@ -189,55 +189,33 @@ describe("Note Service", () => {
   });
 
   describe("security", () => {
-    it("should sanitize dangerous paths and keep files in notes directory", async () => {
+    it("should reject dangerous paths with path traversal", async () => {
       const dangerousNote: Note = {
         title: "../../../etc/passwd",
-        content: "This should stay in notes dir",
+        content: "This should not be saved",
       };
 
-      await saveNote(dangerousNote);
+      await expect(saveNote(dangerousNote)).rejects.toThrow(
+        "Invalid note path: path traversal detected"
+      );
 
-      // Verify the file was created in the notes directory with sanitized name
+      // Verify no file was created
       const files = await fs.readdir(NOTES_DIR);
-      expect(files).toContain("etcpasswd.md");
+      expect(files).not.toContain("etcpasswd.md");
       expect(files).not.toContain("../../../etc/passwd.md");
-
-      // Verify we can retrieve it with the original dangerous title
-      const retrievedNote = await getNote("../../../etc/passwd");
-      expect(retrievedNote).toBeDefined();
-      expect(retrievedNote!.title).toBe(dangerousNote.title);
-
-      // Parse content to check the markdown part
-      const { content } = matter(retrievedNote!.content);
-      expect(content.trim()).toBe(dangerousNote.content);
-
-      // Clean up
-      await deleteNote("../../../etc/passwd");
     });
 
-    it("should sanitize special characters in filenames", async () => {
+    it("should reject special characters that could cause filesystem issues", async () => {
       const specialCharNote: Note = {
         title: 'test<>:|?*"/\\note',
         content: "Content with special chars in title",
       };
 
-      await saveNote(specialCharNote);
+      await expect(saveNote(specialCharNote)).rejects.toThrow();
 
-      // Check that only safe filename was created
+      // Check that no file was created
       const files = await fs.readdir(NOTES_DIR);
-      expect(files).toContain("testnote.md");
-
-      // Verify we can still retrieve with original title
-      const retrievedNote = await getNote('test<>:|?*"/\\note');
-      expect(retrievedNote).toBeDefined();
-      expect(retrievedNote!.title).toBe(specialCharNote.title);
-
-      // Parse content to check the markdown part
-      const { content } = matter(retrievedNote!.content);
-      expect(content.trim()).toBe(specialCharNote.content);
-
-      // Clean up
-      await deleteNote('test<>:|?*"/\\note');
+      expect(files).not.toContain("testnote.md");
     });
   });
 
