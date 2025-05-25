@@ -1,17 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Note } from "../types";
-import {
-  EditorView,
-  keymap,
-  highlightActiveLine,
-  lineNumbers,
-  drawSelection,
-} from "@codemirror/view";
+import { EditorView, keymap, drawSelection } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { searchKeymap } from "@codemirror/search";
 import {
   autocompletion,
   completionKeymap,
@@ -20,12 +14,7 @@ import {
 } from "@codemirror/autocomplete";
 import { foldKeymap } from "@codemirror/language";
 import { lintKeymap } from "@codemirror/lint";
-import {
-  syntaxHighlighting,
-  defaultHighlightStyle,
-  bracketMatching,
-  indentOnInput,
-} from "@codemirror/language";
+import { syntaxHighlighting, defaultHighlightStyle, indentOnInput } from "@codemirror/language";
 
 interface MarkdownEditorProps {
   note: Note;
@@ -33,7 +22,7 @@ interface MarkdownEditorProps {
   onClose: () => void;
 }
 
-const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }) => {
+const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }): JSX.Element => {
   const [isSaving, setIsSaving] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
@@ -124,7 +113,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ note, onSave, onClose }
     };
   }, [note]);
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     if (!note || !hasChanges) return;
 
     setIsSaving(true);

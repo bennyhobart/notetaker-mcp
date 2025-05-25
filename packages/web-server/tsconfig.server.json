@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "incremental": true
+  },
+  "include": ["src/server.ts", "src/__tests__/**/*.ts"],
+  "exclude": ["node_modules", "dist", "src/client"],
+  "references": [
+    {
+      "path": "../mcp-server"
+    }
+  ]
+}

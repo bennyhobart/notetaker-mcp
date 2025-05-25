@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { throttle } from "lodash";
 import { Note, NoteWithPreview } from "../types";
 import MarkdownEditor from "./MarkdownEditor";
 
-const NotesView: React.FC = () => {
+const NotesView: React.FC = (): JSX.Element => {
   const [notes, setNotes] = useState<NoteWithPreview[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -15,7 +15,7 @@ const NotesView: React.FC = () => {
     loadNotes();
   }, []);
 
-  const searchNotes = async (query: string) => {
+  const searchNotes = async (query: string): Promise<void> => {
     if (!query.trim()) {
       setSearchResults([]);
       setSearching(false);
@@ -26,7 +26,7 @@ const NotesView: React.FC = () => {
       const response = await fetch(`/api/notes/search?q=${encodeURIComponent(query)}`);
       const result = await response.json();
       if (result.success) {
-        const processedNotes = result.data.map((note: any) => {
+        const processedNotes = result.data.map((note: Note) => {
           const preview =
             note.content.length > 100 ? note.content.substring(0, 100) + "..." : note.content;
 
@@ -67,13 +67,13 @@ const NotesView: React.FC = () => {
     }
   }, [searchQuery, throttledSearch]);
 
-  const loadNotes = async () => {
+  const loadNotes = async (): Promise<void> => {
     try {
       setLoading(true);
       const response = await fetch("/api/notes");
       const result = await response.json();
       if (result.success) {
-        const processedNotes = result.data.map((note: any) => {
+        const processedNotes = result.data.map((note: Note) => {
           const preview =
             note.content.length > 100 ? note.content.substring(0, 100) + "..." : note.content;
 
@@ -91,7 +91,7 @@ const NotesView: React.FC = () => {
     }
   };
 
-  const loadNoteContent = async (title: string) => {
+  const loadNoteContent = async (title: string): Promise<void> => {
     try {
       const response = await fetch(`/api/notes/${encodeURIComponent(title)}`);
       const result = await response.json();
@@ -103,7 +103,7 @@ const NotesView: React.FC = () => {
     }
   };
 
-  const createNewNote = async () => {
+  const createNewNote = async (): Promise<void> => {
     const title = prompt("Enter note title:");
     if (!title) return;
 
@@ -132,7 +132,7 @@ Start writing your note here...`;
     }
   };
 
-  const saveNote = async (title: string, content: string) => {
+  const saveNote = async (title: string, content: string): Promise<void> => {
     try {
       const response = await fetch(`/api/notes/${encodeURIComponent(title)}`, {
         method: "PUT",

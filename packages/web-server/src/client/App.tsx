@@ -1,7 +1,7 @@
-import React from 'react';
-import NotesView from './components/NotesView';
+import React from "react";
+import NotesView from "./components/NotesView";
 
-function App() {
+function App(): JSX.Element {
   return (
     <div className="h-screen bg-gray-100">
       <NotesView />

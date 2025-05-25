@@ -224,17 +224,17 @@ server.tool(
   "delete-note",
   "Delete a note",
   {
-    noteTitle: z.string(),
+    title: z.string(),
   },
-  async ({ noteTitle }) => {
-    const deleted = await deleteNote(noteTitle);
+  async ({ title }) => {
+    const deleted = await deleteNote(title);
 
     if (!deleted) {
       return {
         content: [
           {
             type: "text",
-            text: `Note with title "${noteTitle}" not found or could not be deleted.`,
+            text: `Note with title "${title}" not found or could not be deleted.`,
           },
         ],
       };
@@ -244,7 +244,7 @@ server.tool(
       content: [
         {
           type: "text",
-          text: `Note with title "${noteTitle}" was successfully deleted.`,
+          text: `Note with title "${title}" was successfully deleted.`,
         },
       ],
     };
