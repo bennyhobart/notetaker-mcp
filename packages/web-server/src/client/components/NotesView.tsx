@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { throttle } from "lodash";
 import { Note, NoteWithPreview } from "../types";
 import MarkdownEditor from "./MarkdownEditor";
 
@@ -7,10 +8,64 @@ const NotesView: React.FC = () => {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<NoteWithPreview[]>([]);
 
   useEffect(() => {
     loadNotes();
   }, []);
+
+  const searchNotes = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/notes/search?q=${encodeURIComponent(query)}`);
+      const result = await response.json();
+      if (result.success) {
+        const processedNotes = result.data.map((note: any) => {
+          const preview =
+            note.content.length > 100 ? note.content.substring(0, 100) + "..." : note.content;
+
+          return {
+            title: note.title,
+            preview: preview,
+          };
+        });
+        setSearchResults(processedNotes);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Error searching notes:", error);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Create throttled search function
+  const throttledSearch = useCallback(
+    throttle((query: string) => {
+      searchNotes(query);
+    }, 300),
+    []
+  );
+
+  // Throttled search effect
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      setSearching(true);
+      throttledSearch(searchQuery);
+    } else {
+      setSearching(false);
+      setSearchResults([]);
+      throttledSearch.cancel(); // Cancel any pending throttled calls
+    }
+  }, [searchQuery, throttledSearch]);
 
   const loadNotes = async () => {
     try {
@@ -99,11 +154,8 @@ Start writing your note here...`;
     }
   };
 
-  const filteredNotes = notes.filter(
-    (note) =>
-      note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.preview.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Use search results if there's a search query, otherwise show all notes
+  const displayedNotes = searchQuery.trim() ? searchResults : notes;
 
   if (loading) {
     return <div className="text-center text-gray-500 py-10">Loading notes...</div>;
@@ -115,13 +167,20 @@ Start writing your note here...`;
       <div className="w-72 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
         <div className="p-4 border-b border-gray-200">
           <div className="flex gap-2 mb-3">
-            <input
-              type="text"
-              placeholder="Search notes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search notes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {searching && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
             <button
               onClick={createNewNote}
               className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -133,12 +192,16 @@ Start writing your note here...`;
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {filteredNotes.length === 0 ? (
+          {displayedNotes.length === 0 ? (
             <div className="p-4 text-center text-gray-500 text-sm">
-              {notes.length === 0 ? "No notes yet" : "No matching notes"}
+              {searchQuery.trim()
+                ? "No matching notes found"
+                : notes.length === 0
+                  ? "No notes yet"
+                  : "No matching notes"}
             </div>
           ) : (
-            filteredNotes.map((note) => (
+            displayedNotes.map((note) => (
               <div
                 key={note.title}
                 onClick={() => loadNoteContent(note.title)}
