@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Note } from "../types";
 import { EditorView, keymap, drawSelection } from "@codemirror/view";
+import ConfirmDialog from "./ConfirmDialog";
 import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
@@ -22,6 +23,7 @@ interface MarkdownEditorProps {
   onSave: (title: string, content: string) => Promise<void>;
   onClose: () => void;
   onNavigateToNote?: (noteTitle: string) => void;
+  onDelete?: (title: string) => Promise<void>;
 }
 
 const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
@@ -29,8 +31,11 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   onSave,
   onClose,
   onNavigateToNote,
+  onDelete,
 }): JSX.Element => {
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const [content, setContent] = useState(note.content);
@@ -153,6 +158,21 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
   };
 
+  const handleDelete = async (): Promise<void> => {
+    if (!onDelete || note.isDraft) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete(note.title);
+      setShowDeleteConfirm(false);
+      onClose();
+    } catch (error) {
+      console.error("Error deleting note:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (!note) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50">
@@ -220,6 +240,15 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           >
             Reset
           </button>
+          {!note.isDraft && onDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isDeleting}
+              className="px-4 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          )}
           <button
             onClick={handleSave}
             disabled={!canSave || isSaving}
@@ -236,6 +265,17 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           <div ref={editorRef} className="flex-1 min-h-0" />
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Note"
+        message={`Are you sure you want to delete "${note.title}"? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 };

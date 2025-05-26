@@ -158,6 +158,25 @@ const NotesView: React.FC = (): JSX.Element => {
     }
   };
 
+  const deleteNote = async (title: string): Promise<void> => {
+    try {
+      const response = await fetch(`/api/notes/${encodeURIComponent(title)}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setSelectedNote(null);
+        loadNotes();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      throw error;
+    }
+  };
+
   // Use search results if there's a search query, otherwise show all notes
   const displayedNotes = searchQuery.trim() ? searchResults : notes;
 
@@ -236,6 +255,7 @@ const NotesView: React.FC = (): JSX.Element => {
           onSave={saveNote}
           onClose={() => setSelectedNote(null)}
           onNavigateToNote={loadNoteContent}
+          onDelete={deleteNote}
         />
       ) : null}
     </div>
