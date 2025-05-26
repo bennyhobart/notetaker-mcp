@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { throttle } from "lodash";
+import { throttle } from "lodash-es";
 import { Note, NoteWithPreview } from "../types";
 import MarkdownEditor from "./MarkdownEditor";
 import LinksPanel from "./LinksPanel";
